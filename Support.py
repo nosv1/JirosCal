@@ -1,5 +1,13 @@
 ''' IMPORTS '''
 
+from __future__ import print_function
+import datetime
+import pickle
+import os.path
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+
 import asyncio
 from bs4 import BeautifulSoup as bsoup
 import discord
@@ -27,30 +35,20 @@ short_date_2 = "%b. %d, %Y %H:%M"
 ids = SimpleNamespace(**{
     # user ids
     'mo_id' : 405944496665133058,
-    'phyner_id' : 770416211300188190,
-    'phyner_service_account' : 'phyner@phyner.iam.gserviceaccount.com',
+    'jiros_id' : 295650056189771776,
+    'jc_id' : 794922853631000616,
 
     # guild ids
-    'mobot_support_id' : 467239192007671818,
-    'phyner_support_id' : 789181254120505386,
+    'test_server' : 449249093059870720,
 
     # channel ids
-    'random_storage' : 789218327473160243,
-    'reported_issues' : 791687481308479528,
-    'requested_features' : 791687504440983572,
 
-})
-
-invite_links = SimpleNamespace(**{
-    'reported_issues' : "https://discord.gg/Da7eFUZrwT",
-    'requested_features' : "https://discord.gg/AvrpUyKzUx",
-    'help' : "https://discord.gg/suAQ2mUBYs",
 })
 
 
 ## COLORS ##
 colors = SimpleNamespace(**{
-    'phyner_grey' : 0x9B9C9F,
+    'jc_blue' : 0x00007c,
 })
 
 
@@ -89,21 +87,43 @@ edit_aliases = ["edit"]
 
 ''' SUPPORT FUNCTIONS '''
 
-async def save_image_to_random_storage(client, attachment):
-    guild = client.get_guild(ids.phyner_support_id)
-    channel = guild.get_channel(ids.random_storage)
+## calendar stuff
+def get_calendar_service():
 
-    msg = await channel.send(file=await attachment.to_file(spoiler=True))
+    SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
-    return msg.attachments[0].url
-# end saveImageReturnURL
+    """Shows basic usage of the Google Calendar API.
+    Prints the start and name of the next 10 events on the user's calendar.
+    """
+    creds = None
+    # The file token.pickle stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'Secrets/phyner_330599785668-unlqi2hfsv3v47g9s216d6v468i3qdtf.apps.googleusercontent.com.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    service = build('calendar', 'v3', credentials=creds)
+    return service
+# end get_calendar_service
 
 
 async def previous_action_error(client, message):
-    phyner = get_phyner_from_channel(message.channel)
+    jc = get_jc_from_channel(message.channel)
 
-    description = f"**The previous action caused an error. {phyner.mention} Support has been notified, and they are very sorry for the inconvenience.**\n\n"
-    description += f"If you just inputted a command, double check your input, and see the `@{phyner} <your_command> help` message. Also feel free to check `@{phyner} bug help` for other options about reporting issues and getting help."
+    description = f"**The previous action caused an error. {jc.mention} Support has been notified, and they are very sorry for the inconvenience.**\n\n"
+    description += f"If you just inputted a command, double check your input, and see the `@{jc} <your_command> help` message. Also feel free to check `@{jc} bug help` for other options about reporting issues and getting help."
 
     embed = await simple_bot_response(message.channel,
         description=description,
@@ -137,11 +157,6 @@ async def previous_action_error(client, message):
 
 ## gspread stuff
 
-def get_g_client():
-    gc = gspread.service_account(filename="Secrets/phyner-a9859c6daae5.json")
-    return gc
-# return gc
-
 def find_value_in_range(r, value, lower=False):
     """
         returns index of value
@@ -162,18 +177,18 @@ def messageOrMsg(msg):
     """
 
     embed = msg.embeds[0] if msg and msg.embeds else discord.Embed()
-    message = None if msg and msg.author.id in [ids.phyner_id] else msg  # is user message
+    message = None if msg and msg.author.id in [ids.jc_id] else msg  # is user message
     msg = None if message else msg  # is bot msg
 
     return embed, message, msg
 # end messageOrMsg
 
-def get_phyner_from_channel(channel):
+def get_jc_from_channel(channel):
     if channel.type != discord.ChannelType.private:
-        return [member for member in channel.members if member.id == ids.phyner_id][0]
+        return [member for member in channel.members if member.id == ids.jc_id][0]
     else:
         return channel.me
-# end get_phyner_member_from_channel
+# end get_jc_from_channel
 
 
 def get_id_from_str(str):
@@ -363,10 +378,10 @@ async def simple_bot_response(channel, author=discord.Embed().Empty, author_url=
     """
     # TODO pass in embed_dict as starting point, no overwriting
     is_dm = is_DMChannel(channel)
-    phyner = get_phyner_from_channel(channel)
+    jc = get_jc_from_channel(channel)
 
     embed = discord.Embed()
-    embed.colour = colors.phyner_grey if is_dm else phyner.roles[-1].color
+    embed.colour = colors.jc_blue if is_dm else jc.roles[-1].color
 
     if author or author_icon_url or author_url:
         embed.set_author(
@@ -402,7 +417,7 @@ async def process_complete_reaction(message, remove=True, rejected=False):
     await message.add_reaction(emojis.tick_emoji if not rejected else emojis.x_emoji)
     if remove:
         await asyncio.sleep(3)
-        await remove_reactions(message, get_phyner_from_channel(message.channel), emojis.tick_emoji)
+        await remove_reactions(message, get_jc_from_channel(message.channel), emojis.tick_emoji)
 # end process_complete_reaction
 
 
@@ -414,7 +429,7 @@ def search_github(query):
     while " " in query:
         query = query.replace(" ", "+")
 
-    html = str(bsoup(requests.get(f"https://github.com/nosv1/Phyner/search?q={query}&type=wikis").text, "html.parser"))
+    html = str(bsoup(requests.get(f"https://github.com/nosv1/JirosCal/search?q={query}&type=wikis").text, "html.parser"))
     results = html.split("class=\"f4 text-normal\"")
     results = results[1:] if len(results) > 1 else []
     for i, result in enumerate(results):

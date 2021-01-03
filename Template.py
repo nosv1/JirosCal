@@ -23,7 +23,7 @@ aliases = ["", ]
 
 async def main(message, args, author_perms):
     """
-        @Phyner _command_
+        @jc _command_
     """
 
 # end main

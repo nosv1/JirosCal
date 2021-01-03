@@ -1,4 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+__pycache__
 
 .env
+**/Logs
+**/Secrets

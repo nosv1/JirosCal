@@ -36,7 +36,7 @@ def create_log_file():
     with open(log_path, "a+", encoding="utf-8") as log_file:
 
         header = ""
-        header += "Phyner is finer.\n"
+        header += "JirosCal\n"
         header += "Creator:\n"
         header += "\tMo#9991\n\n"
 
