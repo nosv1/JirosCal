@@ -1,46 +1,773 @@
+# TODO BREAK WEEKS!!!
+# FIXME DURATIONS!!!
+
+
 ''' IMPORTS '''
 
 import asyncio
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import discord
+import re
+import string
 import traceback
+import validators
+
+from pytz import timezone
 
 
 import Database
+from Database import replace_chars
+import Guilds
 import Logger
 from Logger import log
 import Support
-from Support import simple_bot_response
+from Support import get_jc_from_channel, simple_bot_response
+import Whitelist
 
 
 
 ''' CONSTANTS '''
 
 playlist_aliases = ["playlist", "pl"]
-race_aliases = ["race"]
-event_aliases = ["event", "events"] + race_aliases + playlist_aliases
+race_aliases = ["race", "oneoff", "one-off"]
+championship_aliases = ["league", "championship"]
+time_trial_aliases = ["timetrial", "tt", "time-trial"]
+event_aliases = ["event", "events"] + championship_aliases + race_aliases + playlist_aliases + time_trial_aliases
+
+event_types = ["playlist", "one-off", "championship", "time-trial"]
+platforms = ["Xbox", "PC", "PS", "Cross-Platform"]
+
+time_zones = {
+    "North America" : [
+        {"Los Angeles" : "US/Pacific"}, 
+        {"Denver" : "US/Mountain"}, 
+        {"Chicago" : "US/Central"}, 
+        {"New York" : "US/Eastern"}, 
+    ],
+
+    "South America" : [
+        {"Buenos Aires" : "America/Argentina/Buenos_Aires"},
+    ],
+
+    "Europe" : [
+        {"UTC" : "UTC"},
+        {"London" : "Europe/London"},
+        {"Amsterdam" : "Europe/Amsterdam"},
+    ],
+
+    "Asia" : [
+        {"Vientiane" : "Asia/Vientiane"},
+        {"Japan" : "Japan"},
+    ],
+
+    "Australia" : [
+        {"Queensland" : "Australia/Queensland"},
+        {"Sydney" : "Australia/Sydney"},
+    ],
+}
+
+time_format1 = "%Y-%m-%d %I:%M %p %Z"
+
 
 
 ''' CLASS '''
 class Event:
-    def __init__():
-        pass
+    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, details=None, time_zone=None, date=None, duration=None, repeating=None, invite_link=None):
+        self.id = event_id
+
+        self.guild_id = guild_id
+        self.guild = None
+
+        self.creator_id = creator_id
+        self.creator = None
+
+        self.editor_id = editor_id
+        self.editor = None
+
+        self.type = event_type
+        self.platform = platform
+        self.name = name
+        self.details = details
+        self.time_zone = time_zone # timezone()
+        self.date = date # datetime.datetime() -- time_format (constant)
+        self.duration = duration # as seconds
+        self.repeating = repeating # as days -- Weekly, Every N Weeks, Never
+        self.invite_link = invite_link # jc_guild.invite_link
     # end __init__
+
+
+    def edit_event(self, insert=True):
+        """
+        """
+
+        db = Database.connect_database()
+
+        if insert:
+            db.cursor.execute(f"""
+                INSERT INTO Events (
+                    `guild_id`, `creator_id`, `editor_id`, `type`, `platform`, `name`, `details`, `time_zone`, `date`, `duration`, `repeating`, `invite_link`
+
+                ) VALUES (
+
+                    '{self.guild_id}',
+                    '{self.creator_id}',
+                    '{self.editor_id}',
+                    '{self.type}',
+                    '{self.platform}',
+                    '{replace_chars(self.name)}',
+                    '{replace_chars(self.details)}',
+                    '{self.time_zone}',
+                    '{self.date.strftime(time_format1)}',
+                    '{self.duration}',
+                    '{self.repeating}',
+                    '{replace_chars(self.invite_link)}'
+                )
+            ;""")
+
+        else:
+            pass
+
+        db.connection.commit()
+
+        db.cursor.execute(f"""
+            SELECT MAX(id) FROM Events
+        ;""")
+
+        db.connection.close()
+
+        return int(db.cursor.fetchall()[0][0])
+    # end edit_event
+
+
+    def to_embed(self):
+        embed = discord.Embed()
+        embed.set_footer(text=f"Event ID: {self.id}")
+
+        embed.title = f"**{self.name} ({self.platform})**"
+        embed.description = self.details
+
+        value = f"**Date:** {self.date.strftime('%a %b %m, %Y - %I:%M%p %Z')} [(convert)]({self.date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.date.tzname()}')})\n" # date
+        value = value.replace("AM", "am").replace("PM", "pm").replace(" 0", " ") # AM/PM >> am/pm, 01:00 >> 1:00, 01, >> 1, 
+
+        value += "**Duration:** "
+        if self.duration: # duration
+
+            hours = self.duration // (60 * 60) # 60 * 60 cause duration is in seconds
+            minutes = (self.duration // 60) - (hours * 60) # // 60 cause ^^
+
+            if hours:
+                value += f"{hours} hour{'s' if hours > 1 else ''} "
+
+            if minutes:
+                value += f"{minutes} minutes"
+
+            value += "\n"
+                
+        else:
+            value += "None\n"
+
+        value += "**Repeating:** "
+        if self.repeating: # repeating
+
+            if self.repeating == 7:
+                value == "Weekly\n"
+
+            else:
+                value += f"Every {self.repeating // 7} weeks\n"
+
+        else:
+            value += "Never\n"
+            
+        value += f"**Invite Link:** {self.invite_link}\n"
+
+
+        embed.add_field(
+            name=Support.emojis.space_char,
+            value=value,
+            inline=False
+        )
+
+        return embed
+    # end to_embed
+
+
+    def to_string(self):
+        return (
+            f"ID: {self.id}, " +
+            f"Type: {self.type}, " +
+            f"Name: {self.name}, " +
+            f"Details: {self.details[:100]}..., " + 
+            f"Guild: {self.guild}, " + 
+            f"Time Zone: {self.time_zone}, " + 
+            f"Date: {self.date}, " +
+            f"Duration: {self.duration} seconds, " +
+            f"Repeating: {self.repeating} days, " +
+            f"Invite Link: {self.invite_link}, " +
+            ""
+        )
+    # end to_string
 # end Event
 
 
 ''' FUNCTIONS '''
 
-async def main(client, message, args, author_perms):
+async def main(client, message, args):
     """
         @jc _command_
     """
 
-    if args[0] in Support.create_aliases:
-        await create_event(client, message, args[1:])
+    async def author_not_host():
+        await simple_bot_response(message.channel,
+            title="Not Whitelisted",
+            description="You are not a whitelisted host. Only whitelisted hosts can create, edit, and delete events.",
+            footer=f"@{get_jc_from_channel(message.channel)} whitelist @user",
+            reply_message=message
+        )
+    # end author_not_host
+
+
+    hosts = Whitelist.get_hosts(blacklisted=0)
+    author_is_host = [h for h in hosts if h.id == message.author.id]
+
+
+    if args[2] in Support.create_aliases:
+        if author_is_host:
+            await create_event(client, message, args)
+        else:
+            author_not_host()
 
 # end main
 
 
 async def create_event(client, message, args):
-    pass
+    """
+    """
+
+    msg = None
+    def message_check(m):
+        return (
+            m.channel.id == msg.channel.id and
+            m.author.id == message.author.id
+        )
+    # end message_check
+
+    async def cancel(embed, creator, timed_out=False):
+        embed.title = discord.Embed().Empty
+        embed.description = f"**Cancelled** ([back to server]({message.jump_url}))" if not timed_out else "**Timed Out**"
+        embed.set_footer(text=discord.Embed().Empty)
+        await creator.send(embed=embed)
+    # end cancel
+
+
+    creator = message.author
+    embed = discord.Embed(color=Support.colors.jc_grey)
+    embed.set_footer(text="cancel | restart")
+
+
+    try:
+        await message.add_reaction(Support.emojis.tick_emoji)
+
+
+        ''' 'CREATE' SESSION '''
+
+        c_or_r = "" # cancel or restart
+        while True: 
+
+            event = Event()
+            event.guild = message.guild if message.guild else message.author
+            event.creator, event.editor = message.author, message.author
+            event.guild_id, event.creator_id, event.editor_id = event.guild.id, event.creator.id, event.editor.id
+
+
+            ''' GET EVENT TYPE '''
+
+            if args[1] in playlist_aliases: # playlist
+                event.type = event_types[0]
+
+            elif args[1] in race_aliases: # one off
+                event.type = event_types[1]
+
+            elif args[1] in championship_aliases: # championship
+                event.type = event_types[2]
+
+            elif args[1] in time_trial_aliases: # time trial
+                event.type = event_types[3]
+
+
+            while not event.type:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                # prepare
+                embed.title = "**Which type of event is this?**"
+                embed.description = "Enter the number that matches the event's type.\n\n"
+
+                for i, event_type in enumerate(event_types):
+                    embed.description += f"**{i+1}** {string.capwords(event_type)}\n"
+            
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=120)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+                # set
+                if not c_or_r and mesge.content.isnumeric():
+                    num = int(mesge.content)
+                    if num and num <= len(event_types):
+                        event.type = event_types[num-1]
+
+            # end while ## GET EVENT TYPE ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT PLATFORM '''
+
+            while not event.platform:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                # prepare
+                embed.title = f"**Which platform is this {event.type} hosted on?**"
+                embed.description = f"Enter the number that matches the platform for this {event.type}.\n\n"
+
+                for i, platform in enumerate(platforms):
+                    embed.description += f"**{i+1}** {platform}\n"
+            
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=120)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+                # set
+                if not c_or_r and mesge.content.isnumeric():
+                    num = int(mesge.content)
+                    if num and num <= len(platforms):
+                        event.platform = platforms[num-1]
+
+            # end while ## GET EVENT PLATFORM ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT NAME '''
+
+            # prepare
+            embed.title = f"**What is the name of this {event.type}?**"
+            embed.description = "200 characters or less"
+            
+            # send
+            msg = await creator.send(embed=embed)
+
+            # wait
+            mesge = await client.wait_for("message", check=message_check, timeout=120)
+            c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+            # set
+            if not c_or_r:
+                event.name = mesge.content[:200]
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                await cancel(embed, creator) if c_or_r == "cancel" else ""
+                break
+
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT DETAILS '''
+
+            # prepare
+            embed.title = f"**What are the details for *{event.name}*?**"
+            embed.description = f"Provide a link to a discord message ([back to server]({message.jump_url})), a link to a spreadsheet, or simply type the details here. If there are no details, type `None`."
+            
+            # send
+            msg = await creator.send(embed=embed)
+
+            # wait
+            mesge = await client.wait_for("message", check=message_check, timeout=300)
+            c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+            # set
+            if not c_or_r:
+                event.details = mesge.content
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                await cancel(embed, creator)
+                break
+
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT TIMEZONE '''
+
+            while not event.time_zone:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                tzs = [] # list of time zone names
+
+                # prepare
+                embed.title = f"**Which time zone should be used for *{event.name}*?**"
+                embed.description = f"Enter the number that is associated with the event's time zone. If the desired time zone is missing, contact Mo#9991.\n{Support.emojis.space_char}"
+
+                for continent in time_zones: 
+
+                    value = ""
+                    for i in range(len(time_zones[continent])): # list of continent tzs
+                        for tz_name in time_zones[continent][i]: # {name : time zone}
+                            tz = time_zones[continent][i][tz_name]
+                            tzs.append(tz)
+                            value += f"**{len(tzs)}** {tz_name}\n"
+
+                    value += Support.emojis.space_char
+                    embed.add_field(name=continent, value=value, inline=True)
+
+
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+                # set
+                if not c_or_r and mesge.content.isnumeric():
+                    num = int(mesge.content)
+                    if num and num <= len(tzs):
+                        event.time_zone = timezone(tzs[num-1])
+
+                        embed = embed.to_dict()
+                        del embed["fields"] # #NoFields
+                        embed = discord.Embed().from_dict(embed)
+
+            # end while ## GET EVENT TIMEZONE ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT DATE '''
+
+            while not event.date:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                tzs = [] # list of time zone names
+
+                # prepare
+                embed.title = f"**When is *{event.name}*?**"
+
+                embed.description = "> Friday at 9pm\n"
+                embed.description += "> Today/Tomorrow at 18:00\n"
+                embed.description += "> Now\n"
+                embed.description += "> YYYY-MM-DD 7:00 PM\n"
+
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+
+                # set
+                if not c_or_r:
+                    a, c = Support.get_args_from_content(mesge.content)
+                    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                    relative_days = ["today", "tomorrow"]
+
+                    if a[0].lower() in days: # day at some_time
+                        for format in ["%A at %I%p", "%A at %I:%M%p", "%A at %H%M", "%A at %H:%M"]:
+                            try:
+                                time = datetime.strptime(mesge.content, format)
+
+                                for i in range(1, 7): # loop next week to find the matching day name
+                                    d = datetime.utcnow() + relativedelta(days=i)
+                                    if days.index(a[0].lower()) == d.weekday(): # found the matching weekday
+                                        event.date = datetime(
+                                            d.year, d.month, d.day,
+                                            time.hour, time.minute, time.second
+                                        ).astimezone(event.time_zone)
+                                        break
+                                break
+
+                            except ValueError:
+                                pass
+
+                        
+                    elif a[0].lower() in relative_days: # today/tomorrow at some_time
+                        for format in ["%I%p", "%I:%M%p", "%H%M", "%H:%M"]:
+                            try:
+                                event.date = timezone("UTC").localize(datetime.utcnow()).astimezone(event.time_zone)
+                                event.date += relativedelta(days=1 if a[0].lower() == "tomorrow" else 0)
+
+                                time = datetime.strptime("".join(a[2:]), format)
+                                event.date = datetime(
+                                    event.date.year, event.date.month, event.date.day,
+                                    time.hour, time.minute, time.second
+                                )
+                                break
+
+                            except ValueError:
+                                pass
+
+
+                    elif a[0].lower() == "now": # NOW
+                        event.date = timezone("UTC").localize(datetime.utcnow()).astimezone(event.time_zone)
+                        
+
+
+                    else: # try to convert content to time
+                        for format in ["%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"]:
+                            try:
+                                event.date = datetime.strptime(mesge.content.upper(), format).astimezone(event.time_zone) # .upper for AM/PM
+                                break
+
+                            except ValueError:
+                                pass
+
+            # end while ## GET EVENT TIME ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT DURATION '''
+
+            while not event.duration:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                tzs = [] # list of time zone names
+
+                # prepare
+                embed.title = f"**How long is *{event.name}*?**"
+
+                embed.description = "Type `None` for no duration.\n\n"
+
+                embed.description += "> 2 hours\n"
+                embed.description += "> 45 minutes\n"
+                embed.description += "> 1 hour and 30 minutes\n"
+
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+
+                # set
+                if not c_or_r:
+                    a, c = Support.get_args_from_content(mesge.content)
+                    units = ["hour", "minute"]
+                    seconds = 0
+
+                    i = len(a) - 1
+                    while i > 0:
+                        for unit in units:
+                            if unit in a[i].lower():
+                                if a[i-1].isnumeric():
+                                    seconds += (int(a[i-1]) * (60 if unit == "hour" else 1)) * 60
+                        i -= 1
+                    # end while
+
+                    if seconds:
+                        event.duration = seconds
+
+                    elif mesge.content.lower() == "none":
+                        event.duration = 0
+                        break
+
+            # end while ## GET EVENT DURATION ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT REPETITIVENESS '''
+
+            while event.repeating is not None:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                tzs = [] # list of time zone names
+
+                # prepare
+                embed.title = f"**How often does *{event.name}* repeat?**"
+
+                embed.description = ""
+                for repeat in ["Weekly", "Every *n* Weeks", "Never"]: # THESE MATCH THE IFS BELOW
+                    embed.description += f"> {repeat}\n"
+
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+
+                # set
+                if not c_or_r:
+                    a, c = Support.get_args_from_content(mesge.content)
+                    
+                    if a[0].lower() == "weekly": # THESE IFS MATCH THE FOR LOOP ABOVE
+                        event.repeating = 7
+
+                    elif a[0].lower() == "every" and "week" in a[-2].lower(): # -2 cause -1 is ''
+                        if a[1].isnumeric():
+                            event.repeating = int(a[1]) * 7
+
+                    elif a[0].lower() == "never": # never
+                        event.repeating = 0
+
+            # end while ## GET EVENT REPETITIVENESS ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+
+            ''' GET EVENT INVITE LINK '''
+
+            while not event.invite_link:
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                jc_guild = Guilds.get_jc_guild(event.guild.id)
+
+
+                # prepare
+                embed.title = f"**Which invite link should be used for *{event.name}*?**"
+
+                if jc_guild and jc_guild.invite_link:
+                    embed.description = f"> Default - {jc_guild.invite_link}\n"
+
+                else:
+                     embed.description = f"> ~~Default~~ - `{args[0]} link <invite_link>`\n"
+
+                embed.description += f"> Enter Link\n"
+                embed.description += f"> None\n"
+
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+
+                # set
+                if not c_or_r:
+                    a, c = Support.get_args_from_content(mesge.content)
+
+                    if jc_guild and jc_guild.invite_link and a[0].lower() == "default":
+                        event.invite_link = jc_guild.invite_link
+
+                    elif validators.url(a[0]):
+                        event.invite_link = a[0]
+
+                    elif a[0].lower() == "none":
+                        event.invite_link = "None"
+
+            # end while ## GET EVENT INVITE LINK ##
+
+            # cancel or restart
+            if c_or_r == "cancel":
+                break
+            elif c_or_r == "restart":
+                continue
+
+            print(event.to_string())
+
+            break # natural break, loop only 'continues' if user types restart
+        # end while
+
+        event.id = event.edit_event()
+
+        embed = await simple_bot_response(message.channel, send=False)
+        event_embed = event.to_embed()
+        event_embed.color = embed.color
+
+        await message.channel.send(embed=event_embed)
+
+    except asyncio.TimeoutError:
+        await cancel(embed, creator, timed_out=True)
+
+
+    except discord.errors.Forbidden:
+
+        description = "Event Creating Editing and Deleting Takes place in DMs, enable the setting below, then try again.\n\n"
+
+        description += f"**Settings >> Privacy & Safety >> `Allow direct messages from server members` >> {Support.emojis.tick_emoji}**"
+
+        await simple_bot_response(message.channel,
+            description=description,
+            reply_message=message
+        )
+        await Support.remove_reactions(message, client.user, Support.emojis.tick_emoji)
 # end create_event

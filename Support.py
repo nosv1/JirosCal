@@ -1,13 +1,5 @@
 ''' IMPORTS '''
 
-from __future__ import print_function
-import datetime
-import pickle
-import os.path
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-
 import asyncio
 from bs4 import BeautifulSoup as bsoup
 import discord
@@ -48,7 +40,7 @@ ids = SimpleNamespace(**{
 
 ## COLORS ##
 colors = SimpleNamespace(**{
-    'jc_blue' : 0x00007c,
+    'jc_grey' : 0x404040,
 })
 
 
@@ -87,38 +79,6 @@ edit_aliases = ["edit"]
 
 ''' SUPPORT FUNCTIONS '''
 
-## calendar stuff
-def get_calendar_service():
-
-    SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-
-    """Shows basic usage of the Google Calendar API.
-    Prints the start and name of the next 10 events on the user's calendar.
-    """
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'Secrets/phyner_330599785668-unlqi2hfsv3v47g9s216d6v468i3qdtf.apps.googleusercontent.com.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('calendar', 'v3', credentials=creds)
-    return service
-# end get_calendar_service
-
-
 async def previous_action_error(client, message):
     jc = get_jc_from_channel(message.channel)
 
@@ -153,6 +113,15 @@ async def previous_action_error(client, message):
         await msg.edit(embed=embed)
         await remove_reactions(msg, client.user, emojis.x_emoji)
 # end previous_action_error
+
+
+async def missing_permission(missing_permission, message):
+    await simple_bot_response(message.channel,
+        title="Missing Permission",
+        description=f"You must have the `{missing_permission}` to use this command.",
+        reply_message=message
+    )
+# end missing_permission
 
 
 ## gspread stuff
@@ -381,7 +350,7 @@ async def simple_bot_response(channel, author=discord.Embed().Empty, author_url=
     jc = get_jc_from_channel(channel)
 
     embed = discord.Embed()
-    embed.colour = colors.jc_blue if is_dm else jc.roles[-1].color
+    embed.colour = colors.jc_grey if is_dm else jc.roles[-1].color
 
     if author or author_icon_url or author_url:
         embed.set_author(
@@ -447,6 +416,7 @@ async def restart(client, message, restart_interval, restart=True):
         close or restart pi4 host
     """
 
+    msg = None
     if host == "PI4":
         if restart: # only PI4 has ability to restart
             Logger.log(f"Connection", f"{host} Restarting see you on the other side...")

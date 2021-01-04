@@ -1,0 +1,13 @@
+{
+    "color": 4210752,
+    "description": "`<>` indicates a required argument\n`[]` indicates the argument is optional\n`...` it indicates multiple of the same type of argument\nYou do not include these characters in the command.",
+    "fields": [
+        {
+            "inline": false,
+            "name": "\u2800",
+            "value": "`@JirosCal#7363 event create`\n`@JirosCal#7363 event edit/delete <event_id>`"
+        }
+    ],
+    "title": "Command List",
+    "type": "rich"
+}

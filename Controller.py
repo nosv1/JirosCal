@@ -21,6 +21,7 @@ import Help
 import Logger
 from Logger import log
 import Support
+import Whitelist
 
 
 Logger.create_log_file()
@@ -206,7 +207,13 @@ async def on_message(message):
                     await Help.send_help_embed(client, message, Help.help_links.command_list_1)
 
                 elif args[1] in ["whitelist", "wl"]:
-                    await General.whitelist(client, message, args)
+                    await Whitelist.whitelist(client, message, args)
+
+                
+                ## EVENTS ##
+
+                elif args[1] in Events.event_aliases:
+                    await Events.main(client, message, args)
 
 
                 
@@ -215,11 +222,8 @@ async def on_message(message):
                 elif args[1] == "prefix":
                     jc_guild, guild_prefixes = await Guilds.set_prefix(message, args, author_perms)
 
-                
-                ## EVENTS ##
-
-                elif args[1] in Events.event_aliases:
-                    await Events.main(client, message, args)
+                elif args[1] == "link": 
+                    await Guilds.set_invite_link(client, message, args, author_perms)
 
 
 

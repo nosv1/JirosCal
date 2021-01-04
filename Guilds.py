@@ -1,6 +1,7 @@
 ''' IMPORTS '''
 
 import mysql.connector
+import validators
 
 import Database
 from Database import replace_chars
@@ -26,15 +27,17 @@ class Guild:
         id - varchar(20), primary key
         name - varchar(100)
         prefix - varchar(30) # length same as CustomCommand.prefix
+        invite_link - varcahr(1000)
 
         accounts for dm channels
     """
 
 
-    def __init__(self, guild_id, name=None, prefix="@JirosCal#7363", guild=None):
+    def __init__(self, guild_id, name=None, prefix="@JirosCal#7363", invite_link=None, guild=None):
         self.id = int(guild_id)
         self.name = name
         self.prefix = prefix
+        self.invite_link = invite_link
         self.guild = guild
     # end __init__
 
@@ -48,9 +51,9 @@ class Guild:
         try:
             db.cursor.execute(f"""
                 INSERT INTO Guilds (
-                    `id`, `name`, `prefix`
+                    `id`, `name`, `prefix`, `invite_link`
                 ) VALUES (
-                    '{self.id}', '{self.name}', '{self.prefix}'
+                    '{self.id}', '{self.name}', '{self.prefix}', {Support.quote(self.invite_link) if self.invite_link else 'NULL'}
                 )
             ;""")
 
@@ -58,7 +61,8 @@ class Guild:
             db.cursor.execute(f"""
                 UPDATE Guilds SET 
                     `name` = '{self.name}', 
-                    `prefix` = '{self.prefix}'
+                    `prefix` = '{self.prefix}',
+                    `invite_link` = {Support.quote(self.invite_link) if self.invite_link else 'NULL'}
                 WHERE 
                     id = '{self.id}'
             ;""")
@@ -97,6 +101,7 @@ def get_jc_guild(guild_id):
             guild_id = int(jc_guild[0][0]),
             name = jc_guild[0][1],
             prefix = jc_guild[0][2],
+            invite_link = jc_guild[0][3],
         )
 
     return jc_guild
@@ -135,21 +140,32 @@ async def set_prefix(message, args, author_perms):
         ..j prefix - view current prefix
         ..j prefix [new_prefix] - set prefix
     """
+
     jc = Support.get_jc_from_channel(message.channel)
     # TODO prefix help
 
+
     prefix = message.content[message.content.index(args[1])+len(args[1]):].strip()
+
 
     guild = message.guild if message.guild else message.author
     jc_guild = get_jc_guild(guild.id)       
 
+
     if not jc_guild: # if not in db, create new one
         jc_guild = Guild(guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
+
 
     jc_guild.name = guild.name # set some attrs
     jc_guild.guild = guild if message.guild else None
 
+
     if prefix: # prefix included
+
+        if author_perms.administrator: # missing permissions
+            await Support.missing_permission("Administrator", message)
+            return
+
 
         if len(prefix) <= max_prefix_length: # good to go
 
@@ -158,7 +174,7 @@ async def set_prefix(message, args, author_perms):
                 jc_guild.prefix = prefix
                 await jc_guild.display_prefix(message.channel, new_prefix=True)
 
-            else:
+            else: # conflicting prefix
 
                 description = f"Your server's {jc.mention} prefix cannot be an alias for {jc.mention}'s help messages - `{'`, `'.join(Help.help_aliases)}`."
 
@@ -190,4 +206,71 @@ async def set_prefix(message, args, author_perms):
     jc_guild.edit_guild()
     return jc_guild, get_guild_prefixes()
 # end set_prefix
+
+
+## INVITE LINKS ##
+
+def get_guild_invite_link(guild_id):
+    pass
+# end get_guild_invite_link
+
+
+def get_guild_invite_links():
+    pass
+# end get_guild_invite_links
+
+
+async def set_invite_link(client, message, args, author_perms):
+    """
+    """
+
+    jc = Support.get_jc_from_channel(message.channel)
+    # TODO prefix help
+
+
+    guild = message.guild if message.guild else message.author
+    jc_guild = get_jc_guild(guild.id)
+
+
+    if not jc_guild: # if not in db, create new one
+        jc_guild = Guild(guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
+
+
+    jc_guild.name = guild.name # set some attrs
+    jc_guild.guild = guild if message.guild else None
+
+
+    if validators.url(args[2]): # link provided
+
+        if not author_perms.create_instant_invite: # missing permission
+            await Support.missing_permission("Create Invite", message)
+            return
+
+        jc_guild.invite_link = args[2]
+
+        await simple_bot_response(message.channel,
+            description=f"**{jc_guild.name}'s Invite Link:** {jc_guild.invite_link}"
+        )
+
+
+    elif args[2]: # invalid link
+        await simple_bot_response(message.channel,
+            title="Invalid Link",
+            description=f"`{args[0]} {args[1]} <invite_link>`",
+            reply_message=message
+        )
+
+
+    else: # no link provided
+        description = f"**{jc_guild.name}'s Invite Link:** {jc_guild.invite_link if jc_guild.invite_link else '`None Provided`'}\n\n"
+
+        description += f"`{args[0]} {args[1]} <discord.gg/invite_link>`"
+
+        await simple_bot_response(message.channel,
+            description=description,
+            reply_message=message
+        )
+
+    jc_guild.edit_guild()
+# end set_invite_link
 

@@ -164,7 +164,7 @@ async def send_help_embed(client, msg, embed_link, default_footer=True, demo=Fal
 
         # send embed
         jc = Support.get_jc_from_channel(channel)
-        embed.color = jc.roles[-1].color if type(jc) == discord.member.Member else Support.colors.jc_blue
+        embed.color = jc.roles[-1].color if type(jc) == discord.member.Member else Support.colors.jc_grey
         
         if msg:
             await msg.edit(embed=embed)
