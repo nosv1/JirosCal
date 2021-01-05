@@ -188,7 +188,6 @@ async def set_prefix(message, args, author_perms):
     """
 
     jc = Support.get_jc_from_channel(message.channel)
-    # TODO prefix help
 
 
     prefix = message.content[message.content.index(args[1])+len(args[1]):].strip()
@@ -273,7 +272,6 @@ async def set_invite_link(message, args, author_perms):
     """
 
     jc = Support.get_jc_from_channel(message.channel)
-    # TODO prefix help
 
 
     guild = message.guild if message.guild else message.author

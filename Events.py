@@ -74,7 +74,7 @@ time_format1 = "%Y-%m-%d %I:%M %p"
 
 ''' CLASS '''
 class Event:
-    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, details=None, time_zone=None, start_date=None, end_date=None, duration=None, repeating=None, invite_link=None):
+    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, details=None, time_zone=None, start_date=None, end_date=None, duration=None, repeating=None, break_weeks=[], invite_link=None):
         self.id = event_id
 
         self.guild_id = guild_id
@@ -96,12 +96,32 @@ class Event:
         self.end_date = end_date # as a date (not time), same as start, none, new date
         self.duration = duration # as seconds
         self.repeating = repeating # as days -- Weekly, Every N Weeks, Never
+        self.break_weeks = break_weeks
         self.invite_link = invite_link # jc_guild.invite_link
 
         self.edited = False
         self.embed = None
         self.messages = []
+        self.weeks = []
     # end __init__
+
+
+    def get_weeks(self):
+
+        t = self.start_date
+        i = 0
+        while t <= self.end_date:
+            i += 1
+
+            self.weeks.append(t)
+
+            if self.repeating:
+                t += relativedelta(days=self.repeating)
+
+            else:
+                break
+        # end while
+    # end get_weeks
 
 
     def update_upcoming_events(self):
@@ -115,12 +135,14 @@ class Event:
             WHERE id = '{self.id}'
         ;""")
 
-        while self.start_date <= self.end_date:
+        # TODO work out never ending events...
+
+        for week in self.weeks:
             db.cursor.execute(f"""
                 INSERT INTO UpcomingEvents (
                     `id`, `date`
                 ) VALUES (
-                    '{self.id}', '{self.start_date.strftime(time_format1)}'
+                    '{self.id}', '{week.strftime(time_format1)}'
                 )
             ;""")
             
@@ -418,6 +440,7 @@ async def send_calendar(client, message, user):
     jc_guild.following = Guilds.get_following(client, jc_guild.guild, jc_guild.id)
 
     upcoming_events = []
+    args = []
     for server in jc_guild.following:
         following = server.id
         if message.author.id != client.user.id:
@@ -434,7 +457,7 @@ async def send_calendar(client, message, user):
 
     embed = discord.Embed(color=Support.colors.jc_grey)
     embed.title = "Upcoming Races (4 weeks)"
-    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args[-2] != "all" else ''
+    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
     embed.description += "The times link to online converters.\n"
     embed.description += "The host servers link to the server's default event invite link.\n"
 
@@ -784,9 +807,11 @@ async def edit_event(client, message, args, event=None):
 
                                 if "at" == a[1]:
                                     time = datetime.strptime("".join(a[2:]), format)
-                                    event.start_date = datetime(
-                                        event.start_date.year, event.start_date.month, event.start_date.day,
-                                        time.hour, time.minute, time.second
+                                    event.start_date = event.time_zone.localize(
+                                        datetime(
+                                            event.start_date.year, event.start_date.month, event.start_date.day,
+                                            time.hour, time.minute, time.second
+                                        )
                                     )
                                     break
 
@@ -802,7 +827,9 @@ async def edit_event(client, message, args, event=None):
                     else: # try to convert content to time
                         for format in ["%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"]:
                             try:
-                                event.start_date = datetime.strptime(mesge.content.upper(), format).astimezone(event.time_zone) # .upper for AM/PM
+                                event.start_date = event.time_zone.localize(
+                                    datetime.strptime(mesge.content.upper(), format) # .upper for AM/PM
+                                )
                                 break
 
                             except ValueError:
@@ -859,6 +886,7 @@ async def edit_event(client, message, args, event=None):
 
                     if mesge.content == "1": # same as start date
                         event.end_date = event.start_date # edit end time later when asking for duration
+                        event.repeating = 0
 
 
                     elif mesge.content == "2": # never ending
@@ -893,9 +921,11 @@ async def edit_event(client, message, args, event=None):
                                 event.end_date += relativedelta(days=1 if a[0].lower() == "tomorrow" else 0)
 
                                 time = datetime.strptime("".join(a[2:]), format)
-                                event.end_date = datetime(
-                                    event.end_date.year, event.end_date.month, event.end_date.day,
-                                    time.hour, time.minute, time.second
+                                event.end_date = event.time_zone.localize(
+                                    datetime(
+                                        event.end_date.year, event.end_date.month, event.end_date.day,
+                                        time.hour, time.minute, time.second
+                                    )
                                 )
                                 break
 
@@ -911,11 +941,15 @@ async def edit_event(client, message, args, event=None):
                     else: # try to convert content to time
                         for format in ["%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"]:
                             try:
-                                event.end_date = datetime.strptime(mesge.content.upper(), format).astimezone(event.time_zone) # .upper for AM/PM
+                                event.end_date = event.time_zone.localize(
+                                    datetime.strptime(mesge.content.upper(), format) # .upper for AM/PM
+                                )
                                 break
 
                             except ValueError:
                                 pass
+
+                    print(event.start_date, event.end_date)
 
             # end while ## GET EVENT END DATE ##
 
@@ -1039,6 +1073,63 @@ async def edit_event(client, message, args, event=None):
                 break
             elif c_or_r == "restart":
                 continue
+
+
+            ''' GET EVENT BREAK WEEKS '''
+
+            event.get_weeks()
+
+            while not event.break_weeks and event.repeating and event.end_date != datetime.utcfromtimestamp(0): # is repeating and does end
+
+                # cancel or restart
+                if c_or_r:
+                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                    break
+
+
+                tzs = [] # list of time zone names
+
+                # prepare
+                embed.title = f"**Which weeks are the breaks weeks?**"
+
+                embed.description = "Enter `None` if there are no break weeks.\n"
+                embed.description += "List the break week numbers - ex. `4, 7`.\n\n" 
+
+                for i, w in enumerate(event.weeks):
+                    embed.description += f"**{i+1}** {w.strftime('%A %B %d, %Y')}\n"
+
+                # send
+                msg = await creator.send(embed=embed)
+
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+
+
+                # set it
+                a, c = Support.get_args_from_content(mesge.content)
+
+                if mesge.content.lower() == "none":
+                    event.break_weeks = "None"
+
+                else:
+                    del_weeks = []
+                    for arg in a:
+                        week_num = re.findall("(\d+)", arg)
+                        
+                        if week_num: # valid number given
+                            week_num = int(week_num[0])
+
+                            if week_num and week_num <= len(event.weeks): # number in range
+                                event.break_weeks.append(week_num)
+                                del_weeks.append(event.weeks[week_num-1])
+
+                    for dw in del_weeks:
+                        del event.weeks[event.weeks.index(dw)]
+
+            # end while ## GET EVENT BREAK WEEKS ##
+
 
 
             ''' GET EVENT INVITE LINK '''

@@ -371,7 +371,7 @@ async def simple_bot_response(channel, author=discord.Embed().Empty, author_url=
         Bot sends message as basic embed
         reply_message is defaulted to False, but expects a discord.Message if declared in call
     """
-    # TODO pass in embed_dict as starting point, no overwriting
+    
     is_dm = is_DMChannel(channel)
     jc = get_jc_from_channel(channel)
 
