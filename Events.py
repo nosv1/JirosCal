@@ -180,8 +180,8 @@ class Event:
 
         self.embed = self.to_embed()
 
-        for guild in Guilds.get_followers(client, guild=self.guild, guild_id=self.guild.id):
-            jc_guild = Guilds.get_jc_guild(guild.id)
+        for g_id in Guilds.get_followers(client, guild_id=self.guild.id):
+            jc_guild = Guilds.get_jc_guild(g_id)
 
             jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
 
@@ -1241,7 +1241,10 @@ async def edit_event(client, message, args, event=None):
         event.embed.color = embed.color
         await creator.send(embed=event.embed)
         
+        embed.description = f"**Sending to {len(Guilds.get_followers(client))} followers.**"
+        msg = await creator.send(embed=embed)
         await event.send(client)
+
         event.update_upcoming_events()
 
     except asyncio.TimeoutError:

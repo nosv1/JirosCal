@@ -387,7 +387,7 @@ def get_following(client, guild=None, guild_id=""):
 # end get_following
 
 
-def get_followers(client, guild=None, guild_id=""):
+def get_followers(client, guild_id=""):
     """
         returns [Guild, ...]
     """
@@ -401,14 +401,13 @@ def get_followers(client, guild=None, guild_id=""):
     ;""")
     db.connection.close()
 
-    followers = [guild] if guild else []
+    followers = [guild_id]
     for f_id in db.cursor.fetchall():
         if f_id[0] == "all":
-            followers = client.guilds
+            followers = [g.id for g in client.guilds]
 
         else:
-            g = client.get_guild(int(f_id[0]))
-            followers += [g] if g else []
+            followers += [f_id[0]]
 
     return list(set(followers))
 # end get_following
@@ -446,7 +445,8 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
         jc_guild.following_ids = [s.id for s in get_following(client, jc_guild.guild, jc_guild.id) if s]
 
         for guild in client.guilds:
-            if guild.name.lower() == args[2].lower():
+            a1, c1 = Support.get_args_from_content(guild.name.lower())
+            if " ".join(a1).lower() == " ".join(args[2:]).lower():
                 edited = True
 
                 if not unfollow:
@@ -460,6 +460,7 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
                         edited = False
 
 
+    print(jc_guild.following_ids)
     jc_guild.update_following_ids()
     jc_guild.following = get_following(client, jc_guild.guild, jc_guild.id)
 
