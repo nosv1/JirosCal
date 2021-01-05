@@ -262,7 +262,7 @@ class Event:
         embed.description = self.details
 
 
-        value = f"**Start Date:** {self.start_date.strftime('%a %b %m, %Y - %I:%M%p %Z')} [(convert)]({self.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.start_date.tzname()}')})\n" # start date
+        value = f"**Start Date:** {self.start_date.strftime('%a %d %m %Y - %I:%M%p %Z')} [(convert)]({self.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.start_date.tzname()}')})\n" # start date
 
 
         value += "**End Date:** " # end date
@@ -270,7 +270,7 @@ class Event:
             value += "Never\n"
 
         else:
-            value += f"{self.end_date.strftime('%a %b %m, %Y - %I:%M%p %Z')} [(convert)]({self.end_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.end_date.tzname()}')})\n"
+            value += f"{self.end_date.strftime('%a %d %m %Y - %I:%M%p %Z')} [(convert)]({self.end_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.end_date.tzname()}')})\n"
         value = value.replace("AM", "am").replace("PM", "pm").replace(" 0", " ") # AM/PM >> am/pm, 01:00 >> 1:00, 01, >> 1, 
 
 
