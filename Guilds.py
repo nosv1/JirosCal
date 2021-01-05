@@ -210,7 +210,7 @@ async def set_prefix(message, args, author_perms):
 
     if prefix: # prefix included
 
-        if author_perms.administrator: # missing permissions
+        if message.guild and not author_perms.administrator: # missing permissions
             await Support.missing_permission("Administrator", message)
             return
 
@@ -292,7 +292,7 @@ async def set_invite_link(message, args, author_perms):
 
     if validators.url(args[2]): # link provided
 
-        if not author_perms.create_instant_invite: # missing permission
+        if message.guild and not author_perms.create_instant_invite: # missing permission
             await Support.missing_permission("Create Invite", message)
             return
 
@@ -331,7 +331,7 @@ async def set_follow_channel(client, message, args, author_perms):
     """
     """
 
-    if not author_perms.administrator:
+    if message.guild and not author_perms.administrator:
         await Support.missing_permission('Administrator', message)
         return
 
@@ -421,7 +421,7 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
         check for local server = follow server
     """
 
-    if not author_perms.manage_messages:
+    if message.guild and not author_perms.manage_messages:
         await Support.missing_permission('Manage Messages', message)
         return
 
