@@ -200,7 +200,7 @@ async def on_message(message):
                 # if args[1] in ["?", "search"]:
                     # await Help.search(message, args)
 
-                if args[1] in ["help", "h", "commands", "cmds"]:
+                if args[1] in  Help.help_aliases + ["commands", "cmds"]:
                     e = await Support.simple_bot_response(message.channel, send=False)
                     h_embed = Support.load_embed_from_Embeds("Embeds/command_list.json")
                     h_embed.color = e.color
