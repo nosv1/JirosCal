@@ -475,7 +475,7 @@ async def send_calendar(client, message, user):
 
     embed = discord.Embed(color=Support.colors.jc_grey)
     embed.title = "Upcoming Races (4 weeks)"
-    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
+    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else '\n\n' # keep these \n\n, removing first line further down
     embed.description += "The times link to online converters.\n"
     embed.description += "The names link to the event message in the host server.\n"
     embed.description += "The host servers link to the server's default event invite link.\n"
@@ -512,8 +512,19 @@ async def send_calendar(client, message, user):
             await user.send(embed=embed)
             embed.description = event_str
 
-    if msg_count:
+    if msg_count or not upcoming_events:
         embed.title = discord.Embed().Empty
+
+    if not upcoming_events: # no upcoming events
+        embed.description = f"**There are no upcoming races being hosted"
+        
+        if not args or (args and not args[-2] == "all"): # following
+            embed.description += f" by the servers {f'{message.guild} is' if message.guild else 'you are'} following.**\n\n"
+
+            embed.description += f"`@{client.user} calendar all` to see upcoming races from all servers."
+
+        else:
+            embed.description += ".**\n\n"
 
     await user.send(embed=embed)
 
