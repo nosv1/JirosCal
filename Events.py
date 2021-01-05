@@ -277,7 +277,7 @@ class Event:
 
         embed.add_field(
             name=Support.emojis.space_char,
-            value=f"{Support.emojis.calendar_emoji} Upcoming (following)",
+            value=f"{Support.emojis.calendar_emoji} Upcoming Events",
             inline=False
         )
 
@@ -434,7 +434,9 @@ async def send_calendar(client, message, user):
 
     embed = discord.Embed(color=Support.colors.jc_grey)
     embed.title = "Upcoming Races (4 weeks)"
-    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n"
+    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args[-2] != "all" else ''
+    embed.description += "The times link to online converters.\n"
+    embed.description += "The host servers link to the server's default event invite link.\n"
 
     for e in upcoming_events:
         e.start_date_utc = e.start_date.astimezone(timezone("UTC"))
@@ -452,7 +454,7 @@ async def send_calendar(client, message, user):
             prev_day = e.start_date
             calendar += f"\n**{e.start_date.strftime('%A %B %d, %Y').replace(' 0', ' ')}**\n"
 
-        calendar += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - {e.name}\n"
+        calendar += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - **{e.name}** (**{e.platform}**)\n"
 
         calendar += f"Host Server: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
         calendar += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} weeks' if e.repeating else 'one-off'})\n\n"
