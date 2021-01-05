@@ -487,6 +487,10 @@ async def send_calendar(client, message, user, days_span=28):
         
 
     embed = discord.Embed(color=Support.colors.jc_grey)
+    
+    if days_span == 1 and message.guild: # message sent in guild and reply in channel
+        embed.color = Support.get_jc_from_channel(message.channel).roles[-1].color
+
     embed.title = f"Upcoming Races {'(4 weeks)' if days_span == 28 else ''}"
     embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
     embed.description += "The times link to online converters.\n"
@@ -550,7 +554,7 @@ async def send_calendar(client, message, user, days_span=28):
         await user.send(embed=embed)
 
 
-    await Support.process_complete_reaction(message, remove=True)
+    await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span != 1)
 # end send_calendar
 
 
