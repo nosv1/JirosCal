@@ -184,10 +184,15 @@ class Event:
             jc_guild = Guilds.get_jc_guild(g_id)
 
             jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
+            jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
 
             if not self.edited and jc_guild.follow_channel: # send new messages
-                e = await simple_bot_response(jc_guild.follow_channel, send=False)
-                self.embed.color = e.color
+                if type(jc_guild.follow_channel) == discord.channel.TextChannel:
+                    e = await simple_bot_response(jc_guild.follow_channel, send=False)
+                    self.embed.color = e.color
+
+                else:
+                    self.embed.color = Support.colors.jc_grey
 
                 self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
                 await self.messages[-1].add_reaction(Support.emojis.calendar_emoji)
@@ -259,10 +264,10 @@ class Event:
         embed.set_footer(text=f"Event ID: {self.id}")
 
         embed.title = f"**{self.name} ({self.platform})**"
-        embed.description = self.details
+        embed.description = self.details if self.details.lower() != "none" else discord.Embed().Empty
 
 
-        value = f"**Start Date:** {self.start_date.strftime('%a %d %m %Y - %I:%M%p %Z')} [(convert)]({self.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.start_date.tzname()}')})\n" # start date
+        value = f"**Start Date:** {self.start_date.strftime('%a %d %b %Y - %I:%M%p %Z')} [(convert)]({self.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.start_date.tzname()}')})\n" # start date
 
 
         value += "**End Date:** " # end date
@@ -270,7 +275,7 @@ class Event:
             value += "Never\n"
 
         else:
-            value += f"{self.end_date.strftime('%a %d %m %Y - %I:%M%p %Z')} [(convert)]({self.end_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.end_date.tzname()}')})\n"
+            value += f"{self.end_date.strftime('%a %d %b %Y - %I:%M%p %Z')} [(convert)]({self.end_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.end_date.tzname()}')})\n"
         value = value.replace("AM", "am").replace("PM", "pm").replace(" 0", " ") # AM/PM >> am/pm, 01:00 >> 1:00, 01, >> 1, 
 
 
@@ -1241,7 +1246,7 @@ async def edit_event(client, message, args, event=None):
         event.embed.color = embed.color
         await creator.send(embed=event.embed)
         
-        embed.description = f"**Sending to {len(Guilds.get_followers(client))} followers.**"
+        embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
         msg = await creator.send(embed=embed)
         await event.send(client)
 
