@@ -1,11 +1,46 @@
 {
     "color": 4210752,
-    "description": "`<>` indicates a required argument\n`[]` indicates the argument is optional\n`...` it indicates multiple of the same type of argument\nYou do not include these characters in the command.",
+    "description": "`<>` indicates a required argument\n`[]` indicates the argument is optional\n`...` it indicates multiple of the same type of argument\nYou do not include these characters in the command.\n\u2800",
     "fields": [
         {
             "inline": false,
-            "name": "\u2800",
-            "value": "**Customize your server's prefix**\n`@JirosCal#7363 prefix <new_prefix>`\n`@JirosCal#7363 prefix`\n\n**Set your server's default event invite link**\n`@JirosCal#7363 link <invite_link>`\n`@JirosCal#7363 link`\nlink should never expire\n\n**Specify where events from followed servers get displayed**\n`@JirosCal#7363 here`\n\n**Follow other servers' events**\n`@JirosCal#7363 [un]follow <all/server_name>`\n`@JirosCal#7363 following`\ncan be used in dm's as well\n\n**See upcoming races**\n`@JirosCal#7363 calendar [all/following]`\ndefaults to following\n\n**Create, edit, and delete events**\n`@JirosCal#7363 event create`\n~~`@JirosCal#7363 event edit/delete <event_id>`~~\n\n\"event\" aliases: \n`playlist`, `pl`\n`race`, `one-off`, `oneoff`\n`championship`, `league`\n`time-trial`, `timetrial`, `tt`\n\n**Whitelist other hosts**\n`@JirosCal#7363 whitelist @user`\nmust be a whitelisted host to use this command\n\n**Invite the bot to your server**\n[Basic](https://discord.com/api/oauth2/authorize?client_id=794922853631000616&permissions=85056&scope=bot)"
+            "name": "**Customize your server's prefix**",
+            "value": "`@JirosCal#7363 prefix <new_prefix>`\n`@JirosCal#7363 prefix`\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**Set your server's default event invite link**",
+            "value": "`@JirosCal#7363 link <invite_link>`\n`@JirosCal#7363 link`\nlink should never expire\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**Specify where events from followed servers get displayed**",
+            "value": "`@JirosCal#7363 here`\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**Follow other servers' events**",
+            "value": "`@JirosCal#7363 [un]follow <all/server_name>`\n`@JirosCal#7363 following`\ncan be used in dm's as well\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**See upcoming races**",
+            "value": "`@JirosCal#7363 calendar [all/following]`\ndefaults to following\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**Create, edit, and delete events**",
+            "value": "`@JirosCal#7363 event create`\n~~`@JirosCal#7363 event edit/delete <event_id>`~~\n\n\"event\" aliases: \n`playlist`, `pl`\n`race`, `one-off`, `oneoff`\n`championship`, `league`\n`time-trial`, `timetrial`, `tt`\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**Whitelist other hosts**",
+            "value": "`@JirosCal#7363 whitelist @user`\nmust be a whitelisted host to use this command\n\u2800"
+        },
+        {
+            "inline": false,
+            "name": "**Invite the bot to your server**",
+            "value": "[Admin Permissions](https://discord.com/api/oauth2/authorize?client_id=794922853631000616&permissions=8&scope=bot)\n[Minimum Permissions](https://discord.com/api/oauth2/authorize?client_id=794922853631000616&permissions=85056&scope=bot)"
         }
     ],
     "footer": {
