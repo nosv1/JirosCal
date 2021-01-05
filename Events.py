@@ -70,6 +70,8 @@ time_zones = {
 
 time_format1 = "%Y-%m-%d %I:%M %p"
 
+epoch = timezone("UTC").localize(datetime.utcfromtimestamp(0))
+
 
 
 ''' CLASS '''
@@ -101,23 +103,39 @@ class Event:
 
         self.edited = False
         self.embed = None
-        self.messages = []
+        self.messages = [] # these may be discord.message.Message or jump_urls
         self.weeks = []
     # end __init__
+
+
+    def get_messages(self, client, guild_id=None):
+        db = Database.connect_database()
+        db.cursor.execute(f"""
+            SELECT * FROM EventMessages
+            WHERE id = '{self.id}'
+        ;""")
+        db.connection.close()
+
+        for entry in db.cursor.fetchall():
+            channel = client.get_channel(int(entry[1]))
+            if (
+                not guild_id or 
+                (type(channel) == discord.channel.TextChannel and channel.guild.id == guild_id) or
+                (type(channel) == discord.channel.DMChannel and channel.recipient.id == guild_id)
+            ):
+
+                self.messages.append(f"https://discord.com/channels/{guild_id}/{channel.id}/{entry[2]}")
+    # end get_messages
 
 
     def get_weeks(self):
 
         t = self.start_date
-        i = 0
-        while t <= self.end_date:
-            i += 1
-
+        while t <= self.end_date or (self.end_date == epoch and (t - self.start_date).days <= 56): # before end date or next two months for never ending events
             self.weeks.append(t)
 
             if self.repeating:
                 t += relativedelta(days=self.repeating)
-
             else:
                 break
         # end while
@@ -167,9 +185,8 @@ class Event:
 
         for guild in Guilds.get_followers(client, guild=self.guild, guild_id=self.guild.id):
             jc_guild = Guilds.get_jc_guild(guild.id)
-            jc_guild.guild = client.get_guild(jc_guild.id)
-            if jc_guild.guild:
-                jc_guild.follow_channel = jc_guild.guild.get_channel(jc_guild.follow_channel_id)
+
+            jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
 
             if not self.edited and jc_guild.follow_channel: # send new messages
                 e = await simple_bot_response(jc_guild.follow_channel, send=False)
@@ -252,7 +269,7 @@ class Event:
 
 
         value += "**End Date:** " # end date
-        if self.end_date == datetime.utcfromtimestamp(0): # never ending
+        if self.end_date == epoch: # never ending
             value += "Never\n"
 
         else:
@@ -366,7 +383,7 @@ async def main(client, message, args):
 
 # end main
 
-def get_upcoming_events(guild_id=""):
+def get_upcoming_events(client, guild_id=""):
     """
     """
 
@@ -382,6 +399,7 @@ def get_upcoming_events(guild_id=""):
 
         if event:
             event = event[0]
+            event.get_messages(client, guild_id=event.guild_id)
             event.start_date = event.time_zone.localize(datetime.strptime(entry[1], time_format1))
             upcoming_events.append(event)
 
@@ -448,7 +466,7 @@ async def send_calendar(client, message, user):
             following = '' if args[-2] == "all" else following
 
 
-        ue = get_upcoming_events(following)
+        ue = get_upcoming_events(client, following)
         if following:
             upcoming_events += ue
         else:
@@ -459,6 +477,7 @@ async def send_calendar(client, message, user):
     embed.title = "Upcoming Races (4 weeks)"
     embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
     embed.description += "The times link to online converters.\n"
+    embed.description += "The names link to the event message in the host server.\n"
     embed.description += "The host servers link to the server's default event invite link.\n"
 
     for e in upcoming_events:
@@ -466,25 +485,38 @@ async def send_calendar(client, message, user):
 
     upcoming_events.sort(key=lambda e:e.start_date_utc)
 
-    calendar = ""
-
     prev_day = datetime.utcfromtimestamp(0)
+    msg_count = 0
     for e in upcoming_events:
+        e.get_messages(client, e.guild_id)
+        event_str = ""
         if (e.start_date - upcoming_events[0].start_date).days > 28: # only looping 4 weeks
             break
 
-        if e.start_date.date() != prev_day.date():
+        if e.start_date.date() != prev_day.date(): # new day
             prev_day = e.start_date
-            calendar += f"\n**{e.start_date.strftime('%A %B %d, %Y').replace(' 0', ' ')}**\n"
-
-        calendar += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - **{e.name}** (**{e.platform}**)\n"
-
-        calendar += f"Host Server: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
-        calendar += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} weeks' if e.repeating else 'one-off'})\n\n"
+            event_str += f"\n**__{e.start_date.strftime('%A %d %B %Y').replace(' 0', ' ')}__**\n"
 
 
-    embed.description += calendar
+        event_str += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
+
+        event_str += f"Host: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
+        event_str += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} weeks' if e.repeating else 'one-off'})\n\n"
+
+
+        if len(embed.description + event_str) <= 2000:
+            embed.description += event_str
+
+        else:
+            msg_count += 1
+            await user.send(embed=embed)
+            embed.description = event_str
+
+    if msg_count:
+        embed.title = discord.Embed().Empty
+
     await user.send(embed=embed)
+
 
     await Support.process_complete_reaction(message, remove=True)
 # end send_calendar
@@ -846,7 +878,7 @@ async def edit_event(client, message, args, event=None):
 
             ''' GET EVENT END DATE '''
 
-            while not event.end_date or (event.end_date != datetime.utcfromtimestamp(0) and event.end_date < event.start_date):
+            while not event.end_date or (event.end_date != epoch) and event.end_date < event.start_date:
 
                 # cancel or restart
                 if c_or_r:
@@ -890,7 +922,7 @@ async def edit_event(client, message, args, event=None):
 
 
                     elif mesge.content == "2": # never ending
-                        event.end_date = datetime.utcfromtimestamp(0)
+                        event.end_date = epoch
                         
 
                     elif a[0].lower() in days: # day at some_time
@@ -948,8 +980,6 @@ async def edit_event(client, message, args, event=None):
 
                             except ValueError:
                                 pass
-
-                    print(event.start_date, event.end_date)
 
             # end while ## GET EVENT END DATE ##
 
@@ -1079,7 +1109,7 @@ async def edit_event(client, message, args, event=None):
 
             event.get_weeks()
 
-            while not event.break_weeks and event.repeating and event.end_date != datetime.utcfromtimestamp(0): # is repeating and does end
+            while not event.break_weeks and event.repeating and event.end_date.date() != event.start_date.date(): # repeating and end date not the same day as start day
 
                 # cancel or restart
                 if c_or_r:
@@ -1095,8 +1125,11 @@ async def edit_event(client, message, args, event=None):
                 embed.description = "Enter `None` if there are no break weeks.\n"
                 embed.description += "List the break week numbers - ex. `4, 7`.\n\n" 
 
+
                 for i, w in enumerate(event.weeks):
-                    embed.description += f"**{i+1}** {w.strftime('%A %B %d, %Y')}\n"
+                    embed.description += f"**{i+1}** {w.strftime('%a %d %b %Y')}\n"
+
+                embed.description += "*only showing next 2 months*" if event.end_date == epoch else ""
 
                 # send
                 msg = await creator.send(embed=embed)
