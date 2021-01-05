@@ -305,6 +305,15 @@ async def on_raw_reaction_add(payload):
                 if restart_delta < restart_interval:
                     return
 
+                
+                ## PLAIN REACTION CHECKS ##
+
+                if message.author.id == client.user.id: # is jiroscal messages
+                    
+                    if payload.emoji.name == Support.emojis.calendar_emoji: # calendar emoji
+                        await Events.send_calendar(client, message, user)
+                        remove_reaction = True
+
 
                 ## EMBED CHECKS ##
 
