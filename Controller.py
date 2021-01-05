@@ -197,14 +197,15 @@ async def on_message(message):
                 
                 ## HELP + GENERAL ##
 
-                if args[1] in ["?", "search"]:
-                    await Help.search(message, args)
+                # if args[1] in ["?", "search"]:
+                    # await Help.search(message, args)
 
-                elif args[1] in ["help", "h"]:
-                    await Help.send_help_embed(client, message, Help.help_links.general)
+                if args[1] in ["help", "h", "commands", "cmds"]:
+                    await message.channel.send(embed=Support.load_embed_from_Embeds("Embeds\command_list.json"))
+                    # await Help.send_help_embed(client, message, Help.help_links.general)
 
-                elif args[1] in ["commands", "cmds"]:
-                    await Help.send_help_embed(client, message, Help.help_links.command_list_1)
+                # elif args[1] in ["commands", "cmds"]:
+                    # await Help.send_help_embed(client, message, Help.help_links.command_list_1)
 
                 elif args[1] in ["whitelist", "wl"]:
                     await Whitelist.whitelist(client, message, args)
@@ -215,6 +216,9 @@ async def on_message(message):
                 elif args[1] in Events.event_aliases:
                     await Events.main(client, message, args)
 
+                elif args[1] in Events.calendar_aliases:
+                    await Events.send_calendar(client, message, message.author)
+
 
                 
                 ## GUILDS ##
@@ -223,7 +227,16 @@ async def on_message(message):
                     jc_guild, guild_prefixes = await Guilds.set_prefix(message, args, author_perms)
 
                 elif args[1] == "link": 
-                    await Guilds.set_invite_link(client, message, args, author_perms)
+                    await Guilds.set_invite_link(message, args, author_perms)
+
+                elif args[1] == "here":
+                    await Guilds.set_follow_channel(client, message, args, author_perms)
+
+                elif args[1] in ["follow", "unfollow"]:
+                    await Guilds.follow_server(client, message, args, author_perms, unfollow=args[1] == "unfollow")
+
+                elif args[1] == "following":
+                    await Guilds.display_following(client, message, args)
 
 
 

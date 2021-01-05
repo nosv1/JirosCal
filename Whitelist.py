@@ -87,7 +87,7 @@ async def whitelist(client, message, args):
         return
 
 
-    description = "Whitelisting hosts enables them to create, edit, and delete events. Their actions are your responsibility. If they show signs of misuse, they, everyone they whitelisted, and yourself will be blacklisted.\n\n"
+    description = "Whitelisting hosts enables them to create, edit, and delete events. **Their actions are your responsibility.** If they show signs of misuse, they, everyone they whitelisted, and yourself will be blacklisted.\n\n"
 
     description += f"**Are you sure you would like to whitelist <@{host_user_id}>?**"
 
@@ -97,6 +97,7 @@ async def whitelist(client, message, args):
         footer=f"{args[0]} report <@user> <reasoning>"
     )
 
+    await asyncio.sleep(5)
     for r in reactions:
         await msg.add_reaction(r)
 

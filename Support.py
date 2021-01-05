@@ -4,6 +4,7 @@ import asyncio
 from bs4 import BeautifulSoup as bsoup
 import discord
 import gspread
+import json
 import re
 import requests
 import traceback
@@ -67,6 +68,7 @@ emojis = SimpleNamespace(**{
     "zany_emoji" : "🤪",
     "robot_emoji" : "🤖",
     "counter_clockwise_arrows_emoji" : "🔄",
+    "calendar_emoji" : "📆",
     "letter_emojis" : {"a" : "🇦", "b" : "🇧", "c" : "🇨", "d" : "🇩", "e" : "🇪", "f" : "🇫", "g" : "🇬", "h" : "🇭", "i" : "🇮", "j" : "🇯", "k" : "🇰", "l" : "🇱", "m" : "🇲", "n" : "🇳", "o" : "🇴", "p" : "🇵", "q" : "🇶", "r" : "🇷", "s" : "🇸", "t" : "🇹", "u" : "🇺", "v" : "🇻", "w" : "🇼", "x" : "🇽", "y" : "🇾", "z" : "🇿"}
 })
 
@@ -122,6 +124,7 @@ async def missing_permission(missing_permission, message):
         reply_message=message
     )
 # end missing_permission
+
 
 
 ## gspread stuff
@@ -183,7 +186,21 @@ def get_args_from_content(content):
 # end get_args_from_content
 
 
+
 ## embed stuff ##
+
+def load_embed_from_Embeds(path):
+    """
+        in path
+        return embed
+    """
+
+    with open(path, "r") as embed_file:
+        embed = discord.Embed().from_dict(json.load(embed_file))
+
+    return embed
+# end load_embed_from_Embeds
+
 
 def convert_embed_dict_to_create_messages(embed_dict):
 
@@ -244,6 +261,7 @@ def convert_embed_dict_to_create_messages(embed_dict):
     return [c_m.replace(f"{emojis.space_char}", "\\s").replace(f"{emojis.bullet}", "\\b").replace(f"{emojis.zero_width}", "\\z") for c_m in create_messages]
 # end convert_embed_dict_to_create_messages
 
+
 def update_field_value(embed, name, value):
     embed = embed.to_dict()
     for i in range(len(embed["fields"])):
@@ -254,6 +272,7 @@ def update_field_value(embed, name, value):
     return embed
 # end update_field_value
 
+
 def confirm_input_last_field(embed):
     embed = embed.to_dict()
     field_footer = embed["fields"][-1]["value"]
@@ -262,12 +281,14 @@ def confirm_input_last_field(embed):
     return field_footer, embed
 # end confirm_input_last_field
 
+
 def revert_confirm_input_last_field(field_footer, embed):
     embed = embed.to_dict()
     embed["fields"][-1]["value"] = field_footer
     embed = discord.Embed().from_dict(embed)
     return embed
 # end revert_confirm_input_last_field
+
 
 def revert_confirm_input_last_field_exclamation(field_footer, embed):
     lines = field_footer.split("\n")
@@ -279,11 +300,13 @@ def revert_confirm_input_last_field_exclamation(field_footer, embed):
     return embed
 # end revert_confirm_input_last_field
 
+
 def delete_last_field(embed):
     embed = embed.to_dict() if type(embed) != dict else embed
     del embed["fields"][-1]
     return discord.Embed().from_dict(embed)
 # end delete_last_field
+
 
 def switch_last_two_fields(embed):
     embed = embed.to_dict() if type(embed) != dict else embed
@@ -294,9 +317,11 @@ def switch_last_two_fields(embed):
 # end switch_last_two_fields
 
 
+
 def quote(s):
     return f"'{s}'"
 # end quote
+
 
 
 ## clearing reactions ##
@@ -309,6 +334,7 @@ async def clear_reactions(msg):
     except discord.errors.NotFound:
         pass
 # end clear_reactions
+
 
 async def remove_reactions(msg, user, reactions):
     reactions = [reactions] if type(reactions) != list else reactions

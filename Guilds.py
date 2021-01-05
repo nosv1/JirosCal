@@ -27,19 +27,34 @@ class Guild:
         id - varchar(20), primary key
         name - varchar(100)
         prefix - varchar(30) # length same as CustomCommand.prefix
-        invite_link - varcahr(1000)
+        invite_link - varchar(500)
+        follow_channel_id - varcahr(20)
+
 
         accounts for dm channels
     """
 
 
-    def __init__(self, guild_id, name=None, prefix="@JirosCal#7363", invite_link=None, guild=None):
+    def __init__(self, guild_id, name=None, prefix="@JirosCal#7363", invite_link=None, follow_channel_id=None, following_ids=[]):
         self.id = int(guild_id)
         self.name = name
         self.prefix = prefix
         self.invite_link = invite_link
-        self.guild = guild
+        self.follow_channel_id = follow_channel_id
+        self.following_ids = set(following_ids + [self.id]) # this could be ['all']
+
+        self.follow_channel = None
+        self.guild = None
+        self.following = []
     # end __init__
+
+    def get_following(self):
+        db = Database.connect_database()
+        db.cursor.execute(f"""
+            SELECT following_id FROM 
+        ;""")
+        db.connection.close()
+    # end get_following
 
 
     def edit_guild(self):
@@ -51,9 +66,11 @@ class Guild:
         try:
             db.cursor.execute(f"""
                 INSERT INTO Guilds (
-                    `id`, `name`, `prefix`, `invite_link`
+                    `id`, `name`, `prefix`, `invite_link`, `follow_channel_id`
                 ) VALUES (
-                    '{self.id}', '{self.name}', '{self.prefix}', {Support.quote(self.invite_link) if self.invite_link else 'NULL'}
+                    '{self.id}', '{self.name}', '{self.prefix}', 
+                    {Support.quote(self.invite_link) if self.invite_link else 'NULL'},
+                    {Support.quote(self.follow_channel_id) if self.follow_channel_id else 'NULL'}
                 )
             ;""")
 
@@ -62,7 +79,8 @@ class Guild:
                 UPDATE Guilds SET 
                     `name` = '{self.name}', 
                     `prefix` = '{self.prefix}',
-                    `invite_link` = {Support.quote(self.invite_link) if self.invite_link else 'NULL'}
+                    `invite_link` = {Support.quote(self.invite_link) if self.invite_link else 'NULL'},
+                    `follow_channel_id` = {Support.quote(self.follow_channel_id) if self.follow_channel_id else 'NULL'}
                 WHERE 
                     id = '{self.id}'
             ;""")
@@ -70,6 +88,33 @@ class Guild:
         db.connection.commit()
         db.connection.close()
     # end edit_guild
+
+
+    def update_following_ids(self):
+        """
+        """
+
+        db = Database.connect_database()
+
+        db.cursor.execute(f"""
+            DELETE FROM Following 
+            WHERE follower_id = '{self.id}'
+        ;""")
+
+
+        for f_id in set(self.following_ids):
+            db.cursor.execute(f"""
+                INSERT INTO Following (
+                    `following_id`, `follower_id`
+                ) VALUES (
+                    '{f_id}',
+                    '{self.id}'
+                )
+            ;""")
+
+        db.connection.commit()
+        db.connection.close()
+    # end update_following_ids
 
 
     async def display_prefix(self, channel, new_prefix=False):
@@ -102,6 +147,7 @@ def get_jc_guild(guild_id):
             name = jc_guild[0][1],
             prefix = jc_guild[0][2],
             invite_link = jc_guild[0][3],
+            follow_channel_id = int(jc_guild[0][4]) if jc_guild[0][4] else None
         )
 
     return jc_guild
@@ -157,7 +203,9 @@ async def set_prefix(message, args, author_perms):
 
 
     jc_guild.name = guild.name # set some attrs
-    jc_guild.guild = guild if message.guild else None
+    jc_guild.guild = guild if message.guild else message.author
+
+    jc_guild.edit_guild()
 
 
     if prefix: # prefix included
@@ -220,7 +268,7 @@ def get_guild_invite_links():
 # end get_guild_invite_links
 
 
-async def set_invite_link(client, message, args, author_perms):
+async def set_invite_link(message, args, author_perms):
     """
     """
 
@@ -238,6 +286,8 @@ async def set_invite_link(client, message, args, author_perms):
 
     jc_guild.name = guild.name # set some attrs
     jc_guild.guild = guild if message.guild else None
+
+    jc_guild.edit_guild()
 
 
     if validators.url(args[2]): # link provided
@@ -264,7 +314,7 @@ async def set_invite_link(client, message, args, author_perms):
     else: # no link provided
         description = f"**{jc_guild.name}'s Invite Link:** {jc_guild.invite_link if jc_guild.invite_link else '`None Provided`'}\n\n"
 
-        description += f"`{args[0]} {args[1]} <discord.gg/invite_link>`"
+        description += f"`{args[0]} {args[1]} <invite_link>`"
 
         await simple_bot_response(message.channel,
             description=description,
@@ -274,3 +324,202 @@ async def set_invite_link(client, message, args, author_perms):
     jc_guild.edit_guild()
 # end set_invite_link
 
+
+## FOLLOWING EVENTS ##
+
+async def set_follow_channel(client, message, args, author_perms):
+    """
+    """
+
+    if not author_perms.administrator:
+        await Support.missing_permission('Administrator', message)
+        return
+
+    guild = message.guild if message.guild else message.author
+    jc_guild = get_jc_guild(guild.id)
+
+
+    if not jc_guild: # if not in db, create new one
+        jc_guild = Guild(guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
+
+
+    jc_guild.name = guild.name # set some attrs
+    jc_guild.guild = guild if message.guild else None
+
+    jc_guild.follow_channel = message.channel # set the channel
+    jc_guild.follow_channel_id = jc_guild.follow_channel.id
+
+    jc_guild.edit_guild()
+
+
+    description = "Events from followed servers will now appear in this channel.\n\n"
+
+    description += "**Following:**\n"
+    description += "\n".join([s.name for s in get_following(client, guild=jc_guild.guild, guild_id=jc_guild.id) if s])
+
+    await simple_bot_response(message.channel,
+        title="Event Channel Specified",
+        description=description
+    )
+# end set_follow_channel
+
+
+def get_following(client, guild=None, guild_id=""):
+    """
+        returns [Guild, ...]
+    """
+
+    db = Database.connect_database()
+    db.cursor.execute(f"""
+        SELECT following_id from Following 
+        WHERE follower_id LIKE '%{guild_id}%'
+    ;""")
+    db.connection.close()
+
+    following = [guild] if guild else []
+    for f_id in db.cursor.fetchall():
+        if f_id[0] == "all":
+            following = client.guilds
+
+        else:
+            g = client.get_guild(int(f_id[0]))
+            following += [g] if g else []
+
+    return list(set(following))
+# end get_following
+
+
+def get_followers(client, guild=None, guild_id=""):
+    """
+        returns [Guild, ...]
+    """
+
+    db = Database.connect_database()
+    db.cursor.execute(f"""
+        SELECT follower_id from Following 
+        WHERE 
+            following_id LIKE '%{guild_id}%' OR
+            following_id = 'all'
+    ;""")
+    db.connection.close()
+
+    followers = [guild] if guild else []
+    for f_id in db.cursor.fetchall():
+        if f_id[0] == "all":
+            followers = client.guilds
+
+        else:
+            g = client.get_guild(int(f_id[0]))
+            followers += [g] if g else []
+
+    return list(set(followers))
+# end get_following
+
+
+async def follow_server(client, message, args, author_perms, unfollow=False):
+    """
+        check for local server = follow server
+    """
+
+    if not author_perms.manage_messages:
+        await Support.missing_permission('Manage Messages', message)
+        return
+
+    guild = message.guild if message.guild else message.author
+    jc_guild = get_jc_guild(guild.id)
+
+
+    if not jc_guild: # if not in db, create new one
+        jc_guild = Guild(guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
+
+
+    jc_guild.name = guild.name # set some attrs
+    jc_guild.guild = guild if message.guild else message.author
+
+    jc_guild.edit_guild()
+
+
+    edited = False
+    if args[2] == "all":
+        edited = True
+        jc_guild.following_ids = ["all"] if not unfollow else []
+
+    else:
+        jc_guild.following_ids = [s.id for s in get_following(client, jc_guild.guild, jc_guild.id) if s]
+
+        for guild in client.guilds:
+            if guild.name.lower() == args[2].lower():
+                edited = True
+
+                if not unfollow:
+                    jc_guild.following_ids.append(guild.id)
+
+                else:
+                    try:
+                        del jc_guild.following_ids[jc_guild.following_ids.index(guild.id)]
+
+                    except ValueError:
+                        edited = False
+
+
+    jc_guild.update_following_ids()
+    jc_guild.following = get_following(client, jc_guild.guild, jc_guild.id)
+
+
+    embed = await simple_bot_response(message.channel, send=False)
+
+    if edited:
+        embed.title = "**Following a New Server**" if not unfollow else "Unfollowed a Server"
+
+        embed.description = "**Following:**\n"
+        embed.description += "\n".join([s.name for s in jc_guild.following])
+
+        await message.channel.send(embed=embed)
+
+    elif not unfollow:
+        
+        embed.description = f"**{client.user.mention} is not in `{args[2]}`.**\n\n" if args[2] else ""
+
+        embed.description += f"**Available Servers:**\n"
+        for g in client.guilds:
+            embed.description += f"{g.name}{' (following)' if g in jc_guild.following else ''}\n"
+
+        await message.reply(embed=embed)
+
+    elif unfollow:
+
+        embed.description = f"**{jc_guild.guild} was not following `{args[2]}`.**"
+
+        embed.description += "**Following:**\n"
+        embed.description += "\n".join([s.name for s in jc_guild.following])
+
+        await message.reply(embed=embed)
+# end follow_server
+
+
+async def display_following(client, message, args):
+    """
+    """
+
+    guild = message.guild if message.guild else message.author
+    jc_guild = get_jc_guild(guild.id)
+
+
+    if not jc_guild: # if not in db, create new one
+        jc_guild = Guild(guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
+
+
+    jc_guild.name = guild.name # set some attrs
+    jc_guild.guild = guild if message.guild else message.author
+
+    jc_guild.edit_guild()
+    
+    embed = await simple_bot_response(message.channel, send=False)
+
+    jc_guild.following = get_following(client, jc_guild.guild, jc_guild.id)
+
+    embed.description = "**Following:**\n"
+    embed.description += "\n".join([s.name for s in jc_guild.following ])
+
+    await message.channel.send(embed=embed)
+# end display_following
