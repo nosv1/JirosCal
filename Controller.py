@@ -201,7 +201,7 @@ async def on_message(message):
                     # await Help.search(message, args)
 
                 if args[1] in ["help", "h", "commands", "cmds"]:
-                    await message.channel.send(embed=Support.load_embed_from_Embeds("Embeds\command_list.json"))
+                    await message.channel.send(embed=Support.load_embed_from_Embeds("Embeds/command_list.json"))
                     # await Help.send_help_embed(client, message, Help.help_links.general)
 
                 # elif args[1] in ["commands", "cmds"]:
