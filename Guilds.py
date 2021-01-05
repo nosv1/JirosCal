@@ -297,7 +297,7 @@ async def set_invite_link(message, args, author_perms):
         jc_guild.invite_link = args[2]
 
         await simple_bot_response(message.channel,
-            description=f"**{jc_guild.name}'s Invite Link:** {jc_guild.invite_link}"
+            description=f"**{jc_guild.name}'s Default Event Invite Link:** {jc_guild.invite_link}"
         )
 
 
@@ -310,7 +310,7 @@ async def set_invite_link(message, args, author_perms):
 
 
     else: # no link provided
-        description = f"**{jc_guild.name}'s Invite Link:** {jc_guild.invite_link if jc_guild.invite_link else '`None Provided`'}\n\n"
+        description = f"**{jc_guild.name}'s Default Event Invite Link:** {jc_guild.invite_link if jc_guild.invite_link else '`None Provided`'}\n\n"
 
         description += f"`{args[0]} {args[1]} <invite_link>`"
 
@@ -407,7 +407,7 @@ def get_followers(client, guild_id=""):
             followers = [g.id for g in client.guilds]
 
         else:
-            followers += [f_id[0]]
+            followers += [int(f_id[0])]
 
     return list(set(followers))
 # end get_following
@@ -431,7 +431,12 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
 
 
     jc_guild.name = guild.name # set some attrs
-    jc_guild.guild = guild if message.guild else message.author
+    if message.guild:
+        jc_guild.guild = guild 
+        
+    else:
+        jc_guild.guild = message.author
+        jc_guild.follow_channel_id = message.author.id
 
     jc_guild.edit_guild()
 
