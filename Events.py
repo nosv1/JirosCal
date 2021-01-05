@@ -31,7 +31,9 @@ championship_aliases = ["league", "championship"]
 time_trial_aliases = ["timetrial", "tt", "time-trial"]
 event_aliases = ["event", ] + championship_aliases + race_aliases + playlist_aliases + time_trial_aliases
 
-calendar_aliases = ["calendar", "cal", "events"]
+today_aliases = ["today", "day"]
+week_aliases = ["week", "thisweek"]
+calendar_aliases = ["calendar", "cal", "events"] + today_aliases + week_aliases
 
 event_types = ["playlist", "one-off", "championship", "time-trial"]
 platforms = ["Xbox", "PC", "PS", "Cross-Platform"]
@@ -451,7 +453,7 @@ def get_events(event_id="", guild_id=""):
 # end get_events
 
 
-async def send_calendar(client, message, user):
+async def send_calendar(client, message, user, days_span=28):
     """
     """
     
@@ -460,11 +462,20 @@ async def send_calendar(client, message, user):
     jc_guild.following = Guilds.get_following(client, jc_guild.guild, jc_guild.id)
 
     upcoming_events = []
-    args = []
+    args, c = Support.get_args_from_content(message.content if message.content else "")
+
+    for a in args: # set days span based on args if called from command
+        if a in today_aliases:
+            days_span = 1
+            break
+        
+        elif a in week_aliases:
+            days_span = 7
+            break      
+
     for server in jc_guild.following:
         following = server.id
         if message.author.id != client.user.id:
-            args, c = Support.get_args_from_content(message.content)
             following = '' if args[-2] == "all" else following
 
 
@@ -476,8 +487,8 @@ async def send_calendar(client, message, user):
         
 
     embed = discord.Embed(color=Support.colors.jc_grey)
-    embed.title = "Upcoming Races (4 weeks)"
-    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else '\n\n' # keep these \n\n, removing first line further down
+    embed.title = f"Upcoming Races {'(4 weeks)' if days_span == 28 else ''}"
+    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
     embed.description += "The times link to online converters.\n"
     embed.description += "The names link to the event message in the host server.\n"
     embed.description += "The host servers link to the server's default event invite link.\n"
@@ -492,7 +503,7 @@ async def send_calendar(client, message, user):
     for e in upcoming_events:
         e.get_messages(client, e.guild_id)
         event_str = ""
-        if (e.start_date - upcoming_events[0].start_date).days > 28: # only looping 4 weeks
+        if (e.start_date - upcoming_events[0].start_date).days > days_span:
             break
 
         if e.start_date.date() != prev_day.date(): # new day
@@ -511,7 +522,11 @@ async def send_calendar(client, message, user):
 
         else:
             msg_count += 1
-            await user.send(embed=embed)
+            if days_span == 1: # send to current channel if only showing today's events
+                await message.channel.send(embed=embed)
+
+            else:
+                await user.send(embed=embed)
             embed.description = event_str
 
     if msg_count or not upcoming_events:
@@ -528,7 +543,11 @@ async def send_calendar(client, message, user):
         else:
             embed.description += ".**\n\n"
 
-    await user.send(embed=embed)
+    if days_span == 1: # send to current channel if only showing today's events
+        await message.channel.send(embed=embed)
+
+    else:
+        await user.send(embed=embed)
 
 
     await Support.process_complete_reaction(message, remove=True)

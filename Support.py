@@ -32,7 +32,8 @@ ids = SimpleNamespace(**{
     'jc_id' : 794922853631000616,
 
     # guild ids
-    'test_server' : 449249093059870720,
+    'motestbots_id' : 449249093059870720,
+    'mobot_support_id' : 467239192007671818,
 
     # channel ids
 
