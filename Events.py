@@ -1,6 +1,3 @@
-# TODO BREAK WEEKS!!!
-
-
 ''' IMPORTS '''
 
 import asyncio
