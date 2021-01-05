@@ -460,7 +460,6 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
                         edited = False
 
 
-    print(jc_guild.following_ids)
     jc_guild.update_following_ids()
     jc_guild.following = get_following(client, jc_guild.guild, jc_guild.id)
 
