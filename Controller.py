@@ -216,7 +216,7 @@ async def on_message(message):
                 
                 ## EVENTS ##
 
-                elif args[1] in Events.event_aliases:
+                elif args[1] in Support.create_aliases + Support.edit_aliases + Support.delete_aliases:
                     await Events.main(client, message, args)
 
                 elif args[1] in Events.calendar_aliases:

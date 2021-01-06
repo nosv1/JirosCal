@@ -26,7 +26,7 @@ import Whitelist
 ''' CONSTANTS '''
 
 playlist_aliases = ["playlist", "pl"]
-race_aliases = ["race", "oneoff", "one-off"]
+race_aliases = ["race", "endurance"]
 championship_aliases = ["league", "championship"]
 time_trial_aliases = ["timetrial", "tt", "time-trial"]
 event_aliases = ["event", ] + championship_aliases + race_aliases + playlist_aliases + time_trial_aliases
@@ -35,8 +35,8 @@ today_aliases = ["today", "day"]
 week_aliases = ["week", "thisweek"]
 calendar_aliases = ["calendar", "cal", "events"] + today_aliases + week_aliases
 
-event_types = ["playlist", "one-off", "championship", "time-trial"]
-platforms = ["Xbox", "PC", "PS", "Cross-Platform"]
+event_types = ["playlist", "endurance", "championship", "time-trial"]
+platforms = ["xbox", "pc", "pc", "cross-platform"]
 
 time_zones = {
     "North America" : [
@@ -75,7 +75,7 @@ epoch = timezone("UTC").localize(datetime.utcfromtimestamp(0))
 
 ''' CLASS '''
 class Event:
-    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, details=None, time_zone=None, start_date=None, end_date=None, duration=None, repeating=None, break_weeks=[], invite_link=None):
+    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, description=None, time_zone=None, start_date=None, end_date=None, duration=None, repeating=None, invite_link=None):
         self.id = event_id
 
         self.guild_id = guild_id
@@ -90,24 +90,24 @@ class Event:
         self.type = event_type
         self.platform = platform
         self.name = name
-        self.details = details
+        self.description = description
         self.time_zone = time_zone # timezone()
         self.start_date = start_date # datetime.datetime() -- time_format1 (constant)
         self.start_date_utc = None
         self.end_date = end_date # as a date (not time), same as start, none, new date
         self.duration = duration # as seconds
         self.repeating = repeating # as days -- Weekly, Every N Weeks, Never
-        self.break_weeks = break_weeks
         self.invite_link = invite_link # jc_guild.invite_link
 
         self.edited = False
         self.embed = None
         self.messages = [] # these may be discord.message.Message or jump_urls
         self.weeks = []
+        self.break_weeks = []
     # end __init__
 
 
-    def get_messages(self, client, guild_id=None):
+    async def get_messages(self, client, guild_id=None, urls=True):
         db = Database.connect_database()
         db.cursor.execute(f"""
             SELECT * FROM EventMessages
@@ -116,21 +116,29 @@ class Event:
         db.connection.close()
 
         for entry in db.cursor.fetchall():
-            channel = client.get_channel(int(entry[1]))
-            if (
-                not guild_id or 
-                (type(channel) == discord.channel.TextChannel and channel.guild.id == guild_id) or
-                (type(channel) == discord.channel.DMChannel and channel.recipient.id == guild_id)
-            ):
+            if urls:
+                self.messages.append(f"https://discord.com/channels/{guild_id}/{entry[1]}/{entry[2]}")
 
-                self.messages.append(f"https://discord.com/channels/{guild_id}/{channel.id}/{entry[2]}")
+            else:
+                channel = client.get_channel(entry[1])
+                channel = channel if channel else await client.fetch_channel(entry[1])
+
+                try:
+                    self.messages.append(await channel.fetch_message(int(entry[2])))
+
+                except discord.errors.NotFound: # message not found, or channel not found (not sure on this one)
+                    pass
+
+                except AttributeError: # likely channel was None
+                    pass
     # end get_messages
 
 
     def get_weeks(self):
 
         t = self.start_date
-        while t <= self.end_date or (self.end_date == epoch and (t - self.start_date).days <= 56): # before end date or next two months for never ending events
+        self.weeks = []
+        while t <= self.end_date or (self.end_date.date() == epoch.date() and (t - self.start_date).days < 56): # before end date or next two months for never ending events
             self.weeks.append(t)
 
             if self.repeating:
@@ -154,12 +162,12 @@ class Event:
 
         # TODO work out never ending events...
 
-        for week in self.weeks:
+        for i, week in enumerate(self.weeks):
             db.cursor.execute(f"""
                 INSERT INTO UpcomingEvents (
-                    `id`, `date`
+                    `id`, `date`, `break`
                 ) VALUES (
-                    '{self.id}', '{week.strftime(time_format1)}'
+                    '{self.id}', '{week.strftime(time_format1)}', '{1 if self.break_weeks != "None" and i + 1 in self.break_weeks else 0}'
                 )
             ;""")
             
@@ -224,9 +232,10 @@ class Event:
         db = Database.connect_database()
 
         if insert:
+
             db.cursor.execute(f"""
                 INSERT INTO Events (
-                    `guild_id`, `creator_id`, `editor_id`, `type`, `platform`, `name`, `details`, `time_zone`, `start_date`, `end_date`, `duration`, `repeating`, `invite_link`
+                    `guild_id`, `creator_id`, `editor_id`, `type`, `platform`, `name`, `description`, `time_zone`, `start_date`, `end_date`, `duration`, `repeating`, `invite_link`
 
                 ) VALUES (
 
@@ -236,18 +245,39 @@ class Event:
                     '{self.type}',
                     '{self.platform}',
                     '{replace_chars(self.name)}',
-                    '{replace_chars(self.details)}',
+                    '{replace_chars(self.description)}',
                     '{self.time_zone}',
                     '{self.start_date.strftime(time_format1)}',
                     '{self.end_date.strftime(time_format1)}',
                     '{self.duration}',
                     '{self.repeating}',
                     '{replace_chars(self.invite_link)}'
+
                 )
             ;""")
 
+
         else:
-            pass
+
+            db.cursor.execute(f"""
+                UPDATE Events SET 
+                    `guild_id` = '{self.guild_id}',
+                    `creator_id` = '{self.creator_id}',
+                    `editor_id` = '{self.editor_id}',
+                    `type` = '{self.type}',
+                    `platform` = '{self.platform}',
+                    `name` = '{replace_chars(self.name)}',
+                    `description` = '{replace_chars(self.description)}',
+                    `time_zone` = '{self.time_zone}',
+                    `start_date` = '{self.start_date.strftime(time_format1)}',
+                    `end_date` = '{self.end_date.strftime(time_format1)}',
+                    `duration` = '{self.duration}',
+                    `repeating` = '{self.repeating}',
+                    `invite_link` = '{replace_chars(self.invite_link)}'
+
+                WHERE 
+                    `id` = '{self.id}'
+            ;""")
 
         db.connection.commit()
 
@@ -261,23 +291,46 @@ class Event:
     # end edit_event
 
 
+    async def delete_event(self, client):
+        db = Database.connect_database()
+
+        db.cursor.execute(f"""
+            DELETE FROM Events WHERE id = '{self.id}'
+        ;""")
+
+        db.cursor.execute(f"""
+            DELETE FROM UpcomingEvents WHERE id = '{self.id}'
+        ;""")
+        
+        db.cursor.execute(f"""
+            DELETE FROM EventMessages WHERE id = '{self.id}'
+        ;""")
+
+        db.connection.commit()
+        db.connection.close()
+
+        for e_msg in self.messages:
+            await e_msg.delete()
+    # end delete_event
+
+
     def to_embed(self):
         embed = discord.Embed()
         embed.set_footer(text=f"Event ID: {self.id}")
 
         embed.title = f"**{self.name} ({self.platform})**"
-        embed.description = self.details if self.details.lower() != "none" else discord.Embed().Empty
+        embed.description = self.description if self.description.lower() != "none" else discord.Embed().Empty
 
-
-        value = f"**Start Date:** {self.start_date.strftime('%a %d %b %Y - %I:%M%p %Z')} [(convert)]({self.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.start_date.tzname()}')})\n" # start date
+        
+        value = f"**Start Date:** {Support.smart_day_time_format('%a {S} %b %Y - %I:%M%p %Z', self.start_date)} [(convert)]({self.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.start_date.tzname()}')})\n" # start date
 
 
         value += "**End Date:** " # end date
-        if self.end_date == epoch: # never ending
+        if self.end_date.date() == epoch.date(): # never ending
             value += "Never\n"
 
         else:
-            value += f"{self.end_date.strftime('%a %d %b %Y - %I:%M%p %Z')} [(convert)]({self.end_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.end_date.tzname()}')})\n"
+            value += f"{Support.smart_day_time_format('%a {S} %b %Y - %I:%M%p %Z', self.end_date)} [(convert)]({self.end_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{self.end_date.tzname()}')})\n"
         value = value.replace("AM", "am").replace("PM", "pm").replace(" 0", " ") # AM/PM >> am/pm, 01:00 >> 1:00, 01, >> 1, 
 
 
@@ -309,7 +362,7 @@ class Event:
                 value += f"Every {self.repeating // 7} weeks\n"
             
 
-        value += f"**Host Server:** [{self.guild}]({self.invite_link})\n" # invite link
+        value += f"**Host:** [{self.guild}]({self.invite_link})\n" # invite link
 
 
         embed.add_field(
@@ -331,16 +384,20 @@ class Event:
     def to_string(self):
         return (
             f"ID: {self.id}, " +
+            f"Guild: {self.guild}, " + 
+            f"Creator: {self.creator}, " +
+            f"Editor: {self.editor}, " +
             f"Type: {self.type}, " +
             f"Name: {self.name}, " +
-            f"Details: {self.details[:100]}..., " + 
-            f"Guild: {self.guild}, " + 
+            f"description: {self.description[:100]}..., " + 
             f"Time Zone: {self.time_zone}, " + 
             f"Start Date: {self.start_date}, " +
             f"End Date: {self.end_date}, " +
             f"Duration: {self.duration} seconds, " +
             f"Repeating: {self.repeating} days, " +
+            f"Break Weeks: {self.break_weeks}, " +
             f"Invite Link: {self.invite_link}, " +
+            f"Edited: {self.edited}, " +
             ""
         )
     # end to_string
@@ -368,32 +425,37 @@ async def main(client, message, args):
     author_is_host = [h for h in hosts if h.id == message.author.id]
 
 
-    if args[2] in Support.create_aliases + Support.edit_aliases:
+    if author_is_host:
 
-        if author_is_host:
+        if args[1] in Support.create_aliases + Support.edit_aliases:
 
-            if args[2] in Support.create_aliases and not message.guild:
+            if args[1] in Support.create_aliases and not message.guild:
                 await simple_bot_response(message.channel,
                     description=f"**This command must be used in the host server.**",
                     reply_message=message
                 )
                 return
 
-            await edit_event(client, message, args)
+            await edit_event(client, message, args, event=get_events(event_id=args[-2] if args[-2].isnumeric() else ""))
 
-        else:
-            author_not_host()
-            return
+
+        elif args[1] in Support.delete_aliases and args[-2].isnumeric():
+            await delete_event(client, message, args, get_events(event_id=args[-2]))
+
+    else:
+        author_not_host()
 
 # end main
 
-def get_upcoming_events(client, guild_id=""):
+
+async def get_upcoming_events(client, guild_id="", _break=0):
     """
     """
 
     db = Database.connect_database()
     db.cursor.execute(f"""
-        SELECT * FROM UpcomingEvents
+        SELECT * FROM UpcomingEvents 
+        WHERE break LIKE '%{_break}%'
     ;""")
     db.connection.close()
 
@@ -403,7 +465,7 @@ def get_upcoming_events(client, guild_id=""):
 
         if event:
             event = event[0]
-            event.get_messages(client, guild_id=event.guild_id)
+            await event.get_messages(client, guild_id=event.guild_id)
             event.start_date = event.time_zone.localize(datetime.strptime(entry[1], time_format1))
             upcoming_events.append(event)
 
@@ -420,7 +482,7 @@ def get_event_from_entry(entry):
         event_type=entry[4],
         platform=entry[5],
         name=entry[6],
-        details=entry[7],
+        description=entry[7],
         time_zone=timezone(entry[8]),
         start_date=datetime.strptime(entry[9], time_format1),
         end_date=datetime.strptime(entry[10], time_format1),
@@ -456,6 +518,16 @@ def get_events(event_id="", guild_id=""):
 async def send_calendar(client, message, user, days_span=28):
     """
     """
+
+    reactions = [Support.emojis.left_arrow_emoji, Support.emojis.right_arrow_emoji]
+    msg = None
+    def reaction_check(reaction, r_user):
+        return (
+            r_user.id == user.id and
+            reaction.message.id == msg.id and
+            str(reaction.emoji) in reactions
+        )
+    # end reaction_check
     
     jc_guild = Guilds.get_jc_guild(message.guild.id if message.guild else message.author.id)
     jc_guild.guild = message.guild if message.guild else message.author
@@ -463,15 +535,24 @@ async def send_calendar(client, message, user, days_span=28):
 
     upcoming_events = []
     args, c = Support.get_args_from_content(message.content if message.content else "")
+        
+
+    embed = discord.Embed(color=Support.colors.jc_grey)
+    embed.title = f"Upcoming Races "
 
     for a in args: # set days span based on args if called from command
         if a in today_aliases:
             days_span = 1
+            embed.title += "(24 hours)"
             break
         
         elif a in week_aliases:
             days_span = 7
-            break      
+            embed.title += "(7 days)"
+            break
+
+    embed.title += "(4 weeks)" if "(" not in embed.title else ""
+
 
     for server in jc_guild.following:
         following = server.id
@@ -479,82 +560,117 @@ async def send_calendar(client, message, user, days_span=28):
             following = '' if args[-2] == "all" else following
 
 
-        ue = get_upcoming_events(client, following)
+        ue = await get_upcoming_events(client, following)
         if following:
             upcoming_events += ue
         else:
             upcoming_events = ue
-        
-
-    embed = discord.Embed(color=Support.colors.jc_grey)
     
     if days_span == 1 and message.guild: # message sent in guild and reply in channel
         embed.color = Support.get_jc_from_channel(message.channel).roles[-1].color
-
-    embed.title = f"Upcoming Races {'(4 weeks)' if days_span == 28 else ''}"
-    embed.description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
-    embed.description += "The times link to online converters.\n"
-    embed.description += "The names link to the event message in the host server.\n"
-    embed.description += "The host servers link to the server's default event invite link.\n"
+    description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
+    description += "The times link to online converters.\n"
+    description += "The names link to the event message in the host server.\n"
+    description += "The hosts link to the server's default event invite link.\n"
 
     for e in upcoming_events:
         e.start_date_utc = e.start_date.astimezone(timezone("UTC"))
 
     upcoming_events.sort(key=lambda e:e.start_date_utc)
 
-    prev_day = datetime.utcfromtimestamp(0)
-    msg_count = 0
-    for e in upcoming_events:
-        e.get_messages(client, e.guild_id)
-        event_str = ""
-        if (e.start_date - upcoming_events[0].start_date).days > days_span:
-            break
+    await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span != 1)
 
-        if e.start_date.date() != prev_day.date(): # new day
-            prev_day = e.start_date
-            event_str += f"\n**__{e.start_date.strftime('%A %d %B %Y').replace(' 0', ' ')}__**\n"
+    days_span = [0, days_span, days_span] # 0 and 1 are changing, 2 is step
+
+    try:
+        while True and days_span[-1] != 1:
+
+            embed.description = description
+
+            prev_day = datetime.utcfromtimestamp(0)
+            msg_count = 0
+            for e in upcoming_events:
+                await e.get_messages(client, e.guild_id)
+                event_str = ""
+
+                delta =(e.start_date.date() - datetime.utcnow().date()).days
+                if days_span[0] >= delta:
+                    continue
+                elif days_span[1] < delta:
+                    break
+
+                if e.start_date.date() != prev_day.date(): # new day
+                    prev_day = e.start_date
+                    event_str += f"\n**__{Support.smart_day_time_format('%A {S} %B %Y', e.start_date).replace(' 0', ' ')}__**\n"
 
 
-        event_str += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
+                event_str += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
 
-        event_str += f"Host: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
-        event_str += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} weeks' if e.repeating else 'one-off'})\n\n"
+                event_str += f"Host: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
+                event_str += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} Weeks' if e.repeating else 'one-off'})\n\n"
 
 
-        if len(embed.description + event_str) <= 2000:
-            embed.description += event_str
+                if len(embed.description + event_str) <= 2000:
+                    embed.description += event_str
 
-        else:
-            msg_count += 1
+                else:
+                    msg_count += 1
+                    if days_span == 1: # send to current channel if only showing today's events
+                        await message.channel.send(embed=embed)
+
+                    else:
+                        await user.send(embed=embed)
+                    embed.description = event_str
+
+            if msg_count or not upcoming_events:
+                embed.title = discord.Embed().Empty
+
+            if not upcoming_events: # no upcoming events
+                embed.description = f"**There are no upcoming races being hosted"
+                
+                if not args or (args and not args[-2] == "all"): # following
+                    embed.description += f" by the servers {f'{message.guild} is' if message.guild else 'you are'} following.**\n\n"
+
+                    embed.description += f"`@{client.user} calendar all` to see upcoming races from all servers."
+
+                else:
+                    embed.description += ".**\n\n"
+
+            # send it, yes it may be sent in the loop as well
             if days_span == 1: # send to current channel if only showing today's events
-                await message.channel.send(embed=embed)
+                msg = await message.channel.send(embed=embed)
 
             else:
-                await user.send(embed=embed)
-            embed.description = event_str
-
-    if msg_count or not upcoming_events:
-        embed.title = discord.Embed().Empty
-
-    if not upcoming_events: # no upcoming events
-        embed.description = f"**There are no upcoming races being hosted"
-        
-        if not args or (args and not args[-2] == "all"): # following
-            embed.description += f" by the servers {f'{message.guild} is' if message.guild else 'you are'} following.**\n\n"
-
-            embed.description += f"`@{client.user} calendar all` to see upcoming races from all servers."
-
-        else:
-            embed.description += ".**\n\n"
-
-    if days_span == 1: # send to current channel if only showing today's events
-        await message.channel.send(embed=embed)
-
-    else:
-        await user.send(embed=embed)
+                msg = await user.send(embed=embed)
 
 
-    await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span != 1)
+            # reactions
+            if days_span[0] != 0: # more to the left
+                await msg.add_reaction(reactions[0])
+            
+            if upcoming_events and upcoming_events[-1] != e: # more to the right
+                await msg.add_reaction(reactions[1])
+
+
+            # wait
+            reaction, r_user = await client.wait_for("reaction_add", check=reaction_check, timeout=120)
+
+            if str(reaction.emoji) == reactions[0]: # left arrow
+                days_span[0] -= days_span[-1]
+                days_span[1] -= days_span[-1]
+
+            elif str(reaction.emoji) == reactions[1]: # right arrow
+                days_span[0] += days_span[-1]
+                days_span[1] += days_span[-1]            
+
+        # end while
+
+    except asyncio.TimeoutError:
+        embed.title += "\nTimed Out"
+        try:
+            await msg.edit(embed=embed)
+        except discord.errors.NotFound:
+            pass
 # end send_calendar
 
 
@@ -570,15 +686,15 @@ async def edit_event(client, message, args, event=None):
         )
     # end message_check
 
-    async def cancel(embed, creator, timed_out=False):
+    async def cancel(embed, editor, timed_out=False):
         embed.title = discord.Embed().Empty
         embed.description = f"**Cancelled** ([back to server]({message.jump_url}))" if not timed_out else "**Timed Out**"
         embed.set_footer(text=discord.Embed().Empty)
-        await creator.send(embed=embed)
+        await editor.send(embed=embed)
     # end cancel
 
 
-    creator = message.author
+    editor = message.author
     embed = discord.Embed(color=Support.colors.jc_grey)
 
 
@@ -588,8 +704,8 @@ async def edit_event(client, message, args, event=None):
 
         ''' 'CREATE' SESSION '''
 
-        c_or_r = "" # cancel or restart
-        while True: 
+        crd = "" # cancel or restart or done
+        while True or event and event.edited: 
 
             if not event:
                 event = Event()
@@ -599,18 +715,152 @@ async def edit_event(client, message, args, event=None):
 
                 embed.set_footer(text="cancel | restart")
 
-            else:
+            else: # editing attribute(s)
+                event = event[0] if type(event) == list else event
+                event.guild = client.get_guild(event.guild_id)
+                event.creator = client.get_user(event.creator_id)
                 event.editor = message.author
-                event.editor_id = message.editor_id
+                event.editor_id = message.author.id
+
+                if not event.edited:
+                    ue = [e.start_date for e in await get_upcoming_events(client, _break="")] # get all the weeks
+                    event.break_weeks = [ue.index(e.start_date) + 1 for e in await get_upcoming_events(client, _break=1)]
+                    event.break_weeks = event.break_weeks if event.break_weeks else "None"
+
                 event.edited = True
+
+                editing = None
+                while not editing:
+
+                    # cancel or restart or done
+                    if crd:
+                        await cancel(embed, editor) if crd == "cancel" else ""
+                        break
+                    
+
+                    # delete existing fields from previous iteration
+                    embed = embed.to_dict()
+                    if "fields" in embed:
+                        del embed["fields"]
+                    embed = discord.Embed().from_dict(embed)
+
+
+                    # prepare
+                    embed.title = "Enter the number of the attribute to edit."
+
+                    embed.description = ""
+                    embed.description += "\n**1 - Type**"
+                    embed.description += f"```{string.capwords(event.type)} ```"
+
+                    embed.description += "\n**2 - Platform**"
+                    embed.description += f"```{string.capwords(event.platform)} ```"
+
+                    embed.description += "\n**3 - Name**"
+                    embed.description += f"```{event.name} ```" 
+
+                    embed.description += "\n**4 - Description**"
+                    embed.description += f"```{event.description.strip()[:30]}{'...' if len(event.description) > 30 else ''} ```"
+
+                    embed.description += "\n**5 - Time Zone**"
+                    embed.description += f"```{event.start_date.tzname()} ```"
+
+                    embed.description += "\n**6 - Start**"
+                    embed.description += f"```{Support.smart_day_time_format('%a {S} %b %Y - %I:%M%p %Z', event.start_date)} ```"
+
+                    embed.description += "\n**7 - End**"
+                    embed.description += f"```{'Never' if event.end_date.date() == epoch.date() else Support.smart_day_time_format('%a {S} %b %Y - %I:%M%p %Z', event.end_date)} ```"
+
+
+                    embed.description += "\n**8 - Duration**" # duration
+                    d = ""
+                    hours = event.duration // (60 * 60) # 60 * 60 cause duration is in seconds
+                    minutes = (event.duration // 60) - (hours * 60) # // 60 cause ^^
+
+                    if hours:
+                        d += f"{hours} hour{'s' if hours > 1 else ''} "
+
+                    if minutes:
+                        d += f"{minutes} minutes"
+
+                    embed.description += f"```{d} ```"
+
+
+                    embed.description += "\n**9 - Repeating**" # repeating
+                    r = ""
+                    if event.repeating == 7:
+                        r += "Weekly"
+
+                    else:
+                        r += f"Every {event.repeating // 7} Weeks"
+
+                    embed.description += f"```{r if r else 'Never'} ```"
+
+
+                    embed.description += "\n**10 - Break Weeks**" # break weeks
+                    embed.description += f"```{', '.join(str(bw) for bw in event.break_weeks) if event.break_weeks != 'None' else event.break_weeks} ```"
+
+                    embed.description += "\n**11 - Invite Link**"
+                    embed.description += f"```{event.invite_link} ```"
+
+                    embed.set_footer(text="cancel | done")
+
+
+                    # send
+                    msg = await editor.send(embed=embed)
+
+                    # wait
+                    mesge = await client.wait_for("message", check=message_check, timeout=120)
+                    crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
+
+
+                    # set 
+                    if mesge.content == "1":
+                        event.type = None
+
+                    elif mesge.content == "2":
+                        event.platform = None
+
+                    elif mesge.content == "3":
+                        event.name = None
+
+                    elif mesge.content == "4":
+                        event.description = None
+
+                    elif mesge.content == "5":
+                        event.time_zone = None
+
+                    elif mesge.content == "6":
+                        event.start_date = None
+
+                    elif mesge.content == "7":
+                        event.end_date = None
+
+                    elif mesge.content == "8":
+                        event.duration = None
+
+                    elif mesge.content == "9":
+                        event.repeating = None
+
+                    elif mesge.content == "10":
+                        event.break_weeks = []
+
+                    elif mesge.content == "11":
+                        event.invite_link = None
+
+
+                    if mesge.content.isnumeric() and 1 <= int(mesge.content) <= 11:
+                        editing = mesge.content
+
+                # end while # checking for editing attribute
 
 
             ''' GET EVENT TYPE '''
 
+            ''' removed ability to use aliases in command, so no shortcuts now
             if args[1] in playlist_aliases: # playlist
                 event.type = event_types[0]
 
-            elif args[1] in race_aliases: # one off
+            elif args[1] in race_aliases: # endurance
                 event.type = event_types[1]
 
             elif args[1] in championship_aliases: # championship
@@ -618,13 +868,14 @@ async def edit_event(client, message, args, event=None):
 
             elif args[1] in time_trial_aliases: # time trial
                 event.type = event_types[3]
+            '''
 
 
             while not event.type:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -636,26 +887,26 @@ async def edit_event(client, message, args, event=None):
                     embed.description += f"**{i+1}** {string.capwords(event_type)}\n"
             
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=120)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set
-                if not c_or_r and mesge.content.isnumeric():
+                if not crd and mesge.content.isnumeric():
                     num = int(mesge.content)
                     if num and num <= len(event_types):
                         event.type = event_types[num-1]
 
             # end while ## GET EVENT TYPE ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
@@ -663,9 +914,9 @@ async def edit_event(client, message, args, event=None):
 
             while not event.platform:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -677,25 +928,25 @@ async def edit_event(client, message, args, event=None):
                     embed.description += f"**{i+1}** {platform}\n"
             
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=120)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
                 # set
-                if not c_or_r and mesge.content.isnumeric():
+                if not crd and mesge.content.isnumeric():
                     num = int(mesge.content)
                     if num and num <= len(platforms):
                         event.platform = platforms[num-1]
 
             # end while ## GET EVENT PLATFORM ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
@@ -708,50 +959,50 @@ async def edit_event(client, message, args, event=None):
                 embed.description = "200 characters or less"
                 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=120)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
                 # set
-                if not c_or_r:
+                if not crd:
                     event.name = mesge.content[:200]
 
-                # cancel or restart
-                if c_or_r == "cancel":
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd == "cancel":
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
-                elif c_or_r == "restart":
+                elif crd == "restart":
                     continue
 
 
-            ''' GET EVENT DETAILS '''
+            ''' GET EVENT description '''
 
-            if not event.details:
+            if not event.description:
 
                 # prepare
-                embed.title = f"**What are the details for *{event.name}*?**"
-                embed.description = f"Provide a link to a discord message ([back to server]({message.jump_url})), a link to a spreadsheet, or simply type the details here. If there are no details, type `None`."
+                embed.title = f"**What is the description for *{event.name}*?**"
+                embed.description = f"Provide a description of the event along with a link to a discord message ([back to server]({message.jump_url})) or anywhere event information can be found.\n\nType `None` to skip this step."
                 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
                 # set
-                if not c_or_r:
-                    event.details = mesge.content
+                if not crd:
+                    event.description = mesge.content
 
-                # cancel or restart
-                if c_or_r == "cancel":
-                    await cancel(embed, creator)
+                # cancel or restart or done
+                if crd == "cancel":
+                    await cancel(embed, editor)
                     break
 
-                elif c_or_r == "restart":
+                elif crd == "restart":
                     continue
 
 
@@ -759,9 +1010,9 @@ async def edit_event(client, message, args, event=None):
 
             while not event.time_zone:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -785,15 +1036,15 @@ async def edit_event(client, message, args, event=None):
 
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
                 # set
-                if not c_or_r and mesge.content.isnumeric():
+                if not crd and mesge.content.isnumeric():
                     num = int(mesge.content)
                     if num and num <= len(tzs):
                         event.time_zone = timezone(tzs[num-1])
@@ -804,10 +1055,10 @@ async def edit_event(client, message, args, event=None):
 
             # end while ## GET EVENT TIMEZONE ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
@@ -815,9 +1066,9 @@ async def edit_event(client, message, args, event=None):
 
             while not event.start_date:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -832,16 +1083,16 @@ async def edit_event(client, message, args, event=None):
                 embed.description += "> YYYY-MM-DD 7:00 PM\n"
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set
-                if not c_or_r:
+                if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
                     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
                     relative_days = ["today", "tomorrow"]
@@ -905,20 +1156,20 @@ async def edit_event(client, message, args, event=None):
 
             # end while ## GET EVENT START DATE ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
             ''' GET EVENT END DATE '''
 
-            while not event.end_date or (event.end_date != epoch) and event.end_date < event.start_date:
+            while not event.end_date or (event.end_date.date() != epoch.date()) and event.end_date < event.start_date:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -938,16 +1189,16 @@ async def edit_event(client, message, args, event=None):
                 embed.description += "> YYYY-MM-DD 7:00 PM\n"
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set
-                if not c_or_r:
+                if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
                     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
                     relative_days = ["today", "tomorrow"]
@@ -1019,10 +1270,10 @@ async def edit_event(client, message, args, event=None):
 
             # end while ## GET EVENT END DATE ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
@@ -1030,9 +1281,9 @@ async def edit_event(client, message, args, event=None):
 
             while not event.duration:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -1048,16 +1299,16 @@ async def edit_event(client, message, args, event=None):
                 embed.description += "> 1 hour and 30 minutes\n"
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set
-                if not c_or_r:
+                if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
                     units = ["hour", "minute"]
                     seconds = 0
@@ -1083,10 +1334,10 @@ async def edit_event(client, message, args, event=None):
 
             # end while ## GET EVENT DURATION ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
@@ -1094,9 +1345,9 @@ async def edit_event(client, message, args, event=None):
 
             while event.repeating is None:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -1110,16 +1361,16 @@ async def edit_event(client, message, args, event=None):
                     embed.description += f"> {repeat}\n"
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set
-                if not c_or_r:
+                if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
                     
                     if a[0].lower() == "weekly": # THESE IFS MATCH THE FOR LOOP ABOVE
@@ -1134,10 +1385,10 @@ async def edit_event(client, message, args, event=None):
 
             # end while ## GET EVENT REPETITIVENESS ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
 
@@ -1147,9 +1398,9 @@ async def edit_event(client, message, args, event=None):
 
             while not event.break_weeks and event.repeating and event.end_date.date() != event.start_date.date(): # repeating and end date not the same day as start day
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -1158,22 +1409,22 @@ async def edit_event(client, message, args, event=None):
                 # prepare
                 embed.title = f"**Which weeks are the breaks weeks?**"
 
-                embed.description = "Enter `None` if there are no break weeks.\n"
+                embed.description = "Type `None` if there are no break weeks.\n"
                 embed.description += "List the break week numbers - ex. `4, 7`.\n\n" 
 
 
                 for i, w in enumerate(event.weeks):
-                    embed.description += f"**{i+1}** {w.strftime('%a %d %b %Y')}\n"
+                    embed.description += f"**{i+1}** {Support.smart_day_time_format('%a {S} %b %Y', w)}\n"
 
-                embed.description += "*only showing next 2 months*" if event.end_date == epoch else ""
+                embed.description += "*only showing next 2 months*" if event.end_date.date() == epoch.date() else ""
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set it
@@ -1205,9 +1456,9 @@ async def edit_event(client, message, args, event=None):
 
             while not event.invite_link:
 
-                # cancel or restart
-                if c_or_r:
-                    await cancel(embed, creator) if c_or_r == "cancel" else ""
+                # cancel or restart or done
+                if crd:
+                    await cancel(embed, editor) if crd == "cancel" else ""
                     break
 
 
@@ -1227,16 +1478,16 @@ async def edit_event(client, message, args, event=None):
                 embed.description += f"> None\n"
 
                 # send
-                msg = await creator.send(embed=embed)
+                msg = await editor.send(embed=embed)
 
 
                 # wait
                 mesge = await client.wait_for("message", check=message_check, timeout=300)
-                c_or_r = mesge.content if mesge.content in ["cancel", "restart"] else ""
+                crd = mesge.content if mesge.content in ["cancel", "restart", "done"] else ""
 
 
                 # set
-                if not c_or_r:
+                if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
 
                     if jc_guild and jc_guild.invite_link and a[0].lower() == "default":
@@ -1250,33 +1501,40 @@ async def edit_event(client, message, args, event=None):
 
             # end while ## GET EVENT INVITE LINK ##
 
-            # cancel or restart
-            if c_or_r == "cancel":
+            # cancel or restart or done
+            if crd == "cancel":
                 break
-            elif c_or_r == "restart":
+            elif crd == "restart":
                 continue
 
-            break # natural break, loop only 'continues' if user types restart
+
+            # save it
+            if not event.edited or crd == "done":
+                log("event", event.to_string())
+                event.id = event.edit_event(insert=not event.edited)
+
+                # send it
+                embed = await simple_bot_response(msg.channel, send=False)
+                event.embed = event.to_embed()
+                event.embed.color = embed.color
+                await editor.send(embed=Support.delete_last_field(event.embed))
+                
+                if not event.edited:
+                    embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
+                    await event.send(client)
+
+                else:
+                    await event.get_messages(client, urls=False)
+                    for m in event.messages:
+                        await m.edit(embed=event.embed)
+
+                event.update_upcoming_events()
+
+                break # natural break, loop only 'continues' if user types restart
         # end while
 
-        # save it
-        event.id = event.edit_event()
-        log("event", event.to_string())
-
-        # send it
-        embed = await simple_bot_response(msg.channel, send=False)
-        event.embed = event.to_embed()
-        event.embed.color = embed.color
-        await creator.send(embed=event.embed)
-        
-        embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
-        msg = await creator.send(embed=embed)
-        await event.send(client)
-
-        event.update_upcoming_events()
-
     except asyncio.TimeoutError:
-        await cancel(embed, creator, timed_out=True)
+        await cancel(embed, editor, timed_out=True)
 
 
     except discord.errors.Forbidden:
@@ -1291,3 +1549,29 @@ async def edit_event(client, message, args, event=None):
         )
         await Support.remove_reactions(message, client.user, Support.emojis.tick_emoji)
 # end edit_event
+
+async def delete_event(client, message, args, event):
+    """
+    """
+
+    msg = await simple_bot_response(message.channel,
+        title="**Deleting Event and Event Messages**",
+        description="This could take a moment..."
+    )
+
+    if not event:
+        await simple_bot_response(message.channel,
+            description=f"**Event ID: `{args[-2]}` does not exist.**",
+            reply_message=message
+        )
+        return
+
+    event = event[0]
+    await event.get_messages(client, urls=False)
+
+    msg.embeds[0].title = discord.Embed().Empty
+    msg.embeds[0].description = f"**Event Deleted ({len(event.messages)} messages deleted)**"
+
+    await event.delete_event(client)
+    await msg.edit(embed=msg.embeds[0])
+# end delete_event

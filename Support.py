@@ -69,13 +69,16 @@ emojis = SimpleNamespace(**{
     "zany_emoji" : "🤪",
     "robot_emoji" : "🤖",
     "counter_clockwise_arrows_emoji" : "🔄",
+    "left_arrow_emoji" : "◀️",
+    "right_arrow_emoji": "▶️",
     "calendar_emoji" : "📆",
     "letter_emojis" : {"a" : "🇦", "b" : "🇧", "c" : "🇨", "d" : "🇩", "e" : "🇪", "f" : "🇫", "g" : "🇬", "h" : "🇭", "i" : "🇮", "j" : "🇯", "k" : "🇰", "l" : "🇱", "m" : "🇲", "n" : "🇳", "o" : "🇴", "p" : "🇵", "q" : "🇶", "r" : "🇷", "s" : "🇸", "t" : "🇹", "u" : "🇺", "v" : "🇻", "w" : "🇼", "x" : "🇽", "y" : "🇾", "z" : "🇿"}
 })
 
 ## COMMON ALIASES ##
 add_aliases = ["add", "+"]
-remove_aliases = ["remove", "-"]
+remove_aliases = ["remove", "-",]
+delete_aliases = ["delete", "purge", "clear", "del"] + remove_aliases
 create_aliases = ["create", "new"] + add_aliases
 edit_aliases = ["edit"]
 
@@ -317,6 +320,17 @@ def switch_last_two_fields(embed):
     return discord.Embed().from_dict(embed)
 # end switch_last_two_fields
 
+
+def num_suffix(num):
+    return 'th' if 11 <= num <= 13 else {1:'st', 2:'nd', 3:'rd'}.get(num % 10, 'th')
+# end num_suffix
+
+def smart_day_time_format(format, dt):
+    """
+        day in format should be {S}
+    """
+    return dt.strftime(format).replace("{S}", f"{dt.day}{num_suffix(dt.day)}")
+# end time_format_with_smart_date
 
 
 def quote(s):
