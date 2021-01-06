@@ -475,11 +475,12 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
 
     embed = await simple_bot_response(message.channel, send=False)
 
+    test_servers = [Support.ids.mobot_support_id, Support.ids.motestbots_id]
     if edited:
         embed.title = f"**Following {'a New Server' if args[2] != 'all' else 'All Servers'}**" if not unfollow else f"Unfollowed {'a Server' if args[2] != 'all' else 'All Servers'}"
 
         embed.description = "**Following:**\n"
-        embed.description += "\n".join([s.name for s in jc_guild.following])
+        embed.description += "\n".join([s.name for s in jc_guild.following if s.id not in test_servers])
 
         await message.channel.send(embed=embed)
 
@@ -489,7 +490,7 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
 
         embed.description += f"**Available Servers:**\n"
         for g in client.guilds:
-            if g.id in [Support.ids.mobot_support_id, Support.ids.motestbots_id]: # don't show these servers
+            if g.id in test_servers: # don't show these servers
                 continue
 
             embed.description += f"{g.name}{' (following)' if g in jc_guild.following else ''}\n"
@@ -501,7 +502,7 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
         embed.description = f"**{jc_guild.guild} was not following `{args[2]}`.**"
 
         embed.description += "**Following:**\n"
-        embed.description += "\n".join([s.name for s in jc_guild.following])
+        embed.description += "\n".join([s.name for s in jc_guild.following if s.id not in test_servers])
 
         await message.reply(embed=embed)
 # end follow_server
