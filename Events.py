@@ -669,10 +669,14 @@ async def send_calendar(client, message, user, days_span=28):
         # end while
 
     except asyncio.TimeoutError:
-        embed.title += "\nTimed Out"
         try:
+            embed.title += "\nTimed Out"
             await msg.edit(embed=embed)
-        except discord.errors.NotFound:
+
+        except discord.errors.NotFound: # deleted message
+            pass
+
+        except TypeError: # no title
             pass
 # end send_calendar
 
