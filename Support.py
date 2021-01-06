@@ -391,7 +391,7 @@ async def simple_bot_response(channel, author=discord.Embed().Empty, author_url=
     jc = get_jc_from_channel(channel)
 
     embed = discord.Embed()
-    embed.colour = colors.jc_grey if is_dm else jc.roles[-1].color
+    embed.colour = colors.jc_grey if is_dm else jc.roles[-1].color if jc.roles[-1].color.value != 0 else colors.jc_grey
 
     if author or author_icon_url or author_url:
         embed.set_author(
