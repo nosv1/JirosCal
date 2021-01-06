@@ -200,7 +200,7 @@ async def on_message(message):
                 # if args[1] in ["?", "search"]:
                     # await Help.search(message, args)
 
-                if args[1] in  Help.help_aliases + ["commands", "cmds"]:
+                if args[1] in Help.help_aliases[:3] + ["commands", "cmds"]:
                     e = await Support.simple_bot_response(message.channel, send=False)
                     h_embed = Support.load_embed_from_Embeds("Embeds/command_list.json")
                     h_embed.color = e.color
@@ -246,6 +246,13 @@ async def on_message(message):
 
                 else:
                     # await Help.send_help_embed(client, message, Help.help_links.simple)
+                    description = f"`{args[0]} help`\n"
+                    description += f"`{args[0]} calendar`\n"
+                    await Support.simple_bot_response(message.channel,
+                        title="Command Not Recognized",
+                        description=description,
+                        reply_message=message
+                    )
 
                     if args[1]: # >= 1 arg given, gimme that insight
                         await Logger.log_error(client, f"command not recognized {message.content}")
