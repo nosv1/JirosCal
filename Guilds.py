@@ -418,13 +418,8 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
         check for local server = follow server
     """
 
-    description = f"You need `Manage Messages` permission to have {message.guild} follow a server. However, if you use the same command in {client.user.mention} DMs, then you can tailor your followed servers to your interests."
     if message.guild and not author_perms.manage_messages:
-        await simple_bot_response(message.channel,
-            title="**Missing Permissions**",
-            description=description,
-            reply_message=message
-        )
+        await Support.missing_permission('Manage Messages', message)
         return
 
     guild = message.guild if message.guild else message.author
