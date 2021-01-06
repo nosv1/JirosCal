@@ -304,7 +304,7 @@ async def set_invite_link(message, args, author_perms):
     elif args[2]: # invalid link
         await simple_bot_response(message.channel,
             title="Invalid Link",
-            description=f"`{args[0]} {args[1]} <invite_link>`",
+            description=f"`@{jc} {args[1]} <invite_link>`",
             reply_message=message
         )
 
@@ -312,7 +312,7 @@ async def set_invite_link(message, args, author_perms):
     else: # no link provided
         description = f"**{jc_guild.name}'s Default Event Invite Link:** {jc_guild.invite_link if jc_guild.invite_link else '`None Provided`'}\n\n"
 
-        description += f"`{args[0]} {args[1]} <invite_link>`"
+        description += f"`@{jc} {args[1]} <invite_link>`"
 
         await simple_bot_response(message.channel,
             description=description,

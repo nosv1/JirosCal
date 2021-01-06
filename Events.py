@@ -707,6 +707,8 @@ async def edit_event(client, message, args, event=None):
     editor = message.author
     embed = discord.Embed(color=Support.colors.jc_grey)
 
+    jc = Support.get_jc_from_channel(message.channel)
+
 
     try:
         await message.add_reaction(Support.emojis.tick_emoji)
@@ -1482,7 +1484,7 @@ async def edit_event(client, message, args, event=None):
                     embed.description = f"> Default - {jc_guild.invite_link}\n"
 
                 else:
-                     embed.description = f"> ~~Default~~ - `{args[0]} link <invite_link>`\n"
+                     embed.description = f"> ~~Default~~ - `@{jc} link <invite_link>`\n"
 
                 embed.description += f"> Enter Link\n"
                 embed.description += f"> None\n"

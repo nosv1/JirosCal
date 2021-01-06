@@ -81,7 +81,7 @@ async def whitelist(client, message, args):
 
     if not host_user_id: # user not mentioned
         await simple_bot_response(message.channel,
-            description=f"**A user was not mentioned. `{args[0]} {args[1]} @user`**",
+            description=f"**A user was not mentioned. `@{jc} {args[1]} @user`**",
             reply_message=message
         )
         return
@@ -94,7 +94,7 @@ async def whitelist(client, message, args):
     msg = await Support.simple_bot_response(message.channel,
         title="Whitelisting a Host",
         description=description,
-        footer=f"{args[0]} report <@user> <reasoning>"
+        footer=f"@{jc} report <@user> <reasoning>"
     )
 
     await asyncio.sleep(5)
