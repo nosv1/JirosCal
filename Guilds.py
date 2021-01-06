@@ -499,7 +499,7 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
 
     elif unfollow:
 
-        embed.description = f"**{jc_guild.guild} was not following `{args[2]}`.**"
+        embed.description = f"**{jc_guild.guild} was not following `{args[2]}`.**\n"
 
         embed.description += "**Following:**\n"
         embed.description += "\n".join([s.name for s in jc_guild.following if s.id not in test_servers])
