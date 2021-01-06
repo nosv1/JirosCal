@@ -36,7 +36,7 @@ week_aliases = ["week", "thisweek"]
 calendar_aliases = ["calendar", "cal", "events"] + today_aliases + week_aliases
 
 event_types = ["playlist", "endurance", "championship", "time-trial"]
-platforms = ["xbox", "pc", "pc", "cross-platform"]
+platforms = ["xbox", "pc", "ps", "cross-platform"]
 
 time_zones = {
     "North America" : [
@@ -529,8 +529,8 @@ async def send_calendar(client, message, user, days_span=28):
         )
     # end reaction_check
     
-    jc_guild = Guilds.get_jc_guild(message.guild.id if message.guild else message.author.id)
-    jc_guild.guild = message.guild if message.guild else message.author
+    jc_guild = Guilds.get_jc_guild(message.guild.id if message.guild else user.id)
+    jc_guild.guild = message.guild if message.guild else user
     jc_guild.following = Guilds.get_following(client, jc_guild.guild, jc_guild.id)
 
     upcoming_events = []
@@ -604,7 +604,7 @@ async def send_calendar(client, message, user, days_span=28):
                     event_str += f"\n**__{Support.smart_day_time_format('%A {S} %B %Y', e.start_date).replace(' 0', ' ')}__**\n"
 
 
-                event_str += f"[{e.start_date.strftime('%H:%M %Z')}]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
+                event_str += f"[`{e.start_date.strftime('%H:%M %Z')}`]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
 
                 event_str += f"Host: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
                 event_str += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} Weeks' if e.repeating else 'one-off'})\n\n"
@@ -661,7 +661,10 @@ async def send_calendar(client, message, user, days_span=28):
 
             elif str(reaction.emoji) == reactions[1]: # right arrow
                 days_span[0] += days_span[-1]
-                days_span[1] += days_span[-1]            
+                days_span[1] += days_span[-1]
+
+            else:
+                break
 
         # end while
 
@@ -925,7 +928,7 @@ async def edit_event(client, message, args, event=None):
                 embed.description = f"Enter the number that matches the platform for this {event.type}.\n\n"
 
                 for i, platform in enumerate(platforms):
-                    embed.description += f"**{i+1}** {platform}\n"
+                    embed.description += f"**{i+1}** {string.capwords(platform)}\n"
             
                 # send
                 msg = await editor.send(embed=embed)
@@ -1515,9 +1518,11 @@ async def edit_event(client, message, args, event=None):
 
                 # send it
                 embed = await simple_bot_response(msg.channel, send=False)
-                event.embed = event.to_embed()
+                event.embed = Support.delete_last_field(event.to_embed())
                 event.embed.color = embed.color
-                await editor.send(embed=Support.delete_last_field(event.embed))
+                await editor.send(embed=event.embed)
+                
+                embed = event.to_embed()
                 
                 if not event.edited:
                     embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
@@ -1526,6 +1531,8 @@ async def edit_event(client, message, args, event=None):
                 else:
                     await event.get_messages(client, urls=False)
                     for m in event.messages:
+                        e = await simple_bot_response(m.channel, send=False)
+                        event.embed.color = e.color
                         await m.edit(embed=event.embed)
 
                 event.update_upcoming_events()
