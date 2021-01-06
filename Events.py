@@ -581,7 +581,7 @@ async def send_calendar(client, message, user, days_span=28):
 
     upcoming_events.sort(key=lambda e:e.start_date_utc)
 
-    await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span != 1)
+    await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span == 1)
 
     days_span = [0, days_span, days_span] # 0 and 1 are changing, 2 is step
 
