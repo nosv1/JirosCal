@@ -581,17 +581,17 @@ async def send_calendar(client, message, user, days_span=28):
 
     upcoming_events.sort(key=lambda e:e.start_date_utc)
 
-    await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span == 1)
-
     days_span = [0, days_span, days_span] # 0 and 1 are changing, 2 is step
 
     try:
-        while True and days_span[-1] != 1:
+        count = 0
+        while True:
 
             embed.description = description
 
             prev_day = datetime.utcfromtimestamp(0)
             msg_count = 0
+            event_count = 0
             for e in upcoming_events:
                 await e.get_messages(client, e.guild_id)
                 event_str = ""
@@ -601,6 +601,8 @@ async def send_calendar(client, message, user, days_span=28):
                     continue
                 elif days_span[1] < delta:
                     break
+
+                event_count += 1
 
                 if e.start_date.date() != prev_day.date(): # new day
                     prev_day = e.start_date
@@ -628,7 +630,7 @@ async def send_calendar(client, message, user, days_span=28):
             if msg_count or not upcoming_events:
                 embed.title = discord.Embed().Empty
 
-            if not upcoming_events: # no upcoming events
+            if not event_count: # no upcoming events
                 embed.description = f"**There are no upcoming races being hosted"
                 
                 if not args or (args and not args[-2] == "all"): # following
@@ -640,11 +642,16 @@ async def send_calendar(client, message, user, days_span=28):
                     embed.description += ".**\n\n"
 
             # send it, yes it may be sent in the loop as well
-            if days_span == 1: # send to current channel if only showing today's events
+            if days_span[-1] == 1: # send to current channel if only showing today's events
                 msg = await message.channel.send(embed=embed)
+                break
 
             else:
                 msg = await user.send(embed=embed)
+
+
+            if not count:
+                await Support.process_complete_reaction(message, remove=client.user.id == message.author.id or days_span == 1)
 
 
             # reactions
@@ -669,6 +676,7 @@ async def send_calendar(client, message, user, days_span=28):
             else:
                 break
 
+            count += 1
         # end while
 
     except asyncio.TimeoutError:
@@ -937,7 +945,7 @@ async def edit_event(client, message, args, event=None):
                 embed.description = f"Enter the number that matches the platform for this {event.type}.\n\n"
 
                 for i, platform in enumerate(platforms):
-                    embed.description += f"**{i+1}** {string.capwords(platform)}\n"
+                    embed.description += f"**{i+1}** {string.capwords(platform) if len(platform) != 2 else platform.upper()}\n" # upper PC and PS
             
                 # send
                 msg = await editor.send(embed=embed)
