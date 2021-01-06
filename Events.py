@@ -531,7 +531,7 @@ async def send_calendar(client, message, user, days_span=28):
     
     jc_guild = Guilds.get_jc_guild(message.guild.id if message.guild else user.id)
     if not jc_guild: # if not in db, create new one
-        jc_guild = Guilds.Guild(guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
+        jc_guild = Guilds.Guild(message.guild.id, prefix=f"@{Support.get_jc_from_channel(message.channel)}")
         jc_guild.edit_guild()
     jc_guild.guild = message.guild if message.guild else user
     jc_guild.following = Guilds.get_following(client, jc_guild.guild, jc_guild.id)
