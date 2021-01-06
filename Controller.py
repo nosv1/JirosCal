@@ -246,8 +246,8 @@ async def on_message(message):
 
                 else:
                     # await Help.send_help_embed(client, message, Help.help_links.simple)
-                    description = f"`{args[0]} help`\n"
-                    description += f"`{args[0]} calendar`\n"
+                    description = f"`@{jc} help`\n"
+                    description += f"`@{jc} calendar`\n"
                     await Support.simple_bot_response(message.channel,
                         title="Command Not Recognized",
                         description=description,
