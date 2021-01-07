@@ -1200,8 +1200,8 @@ async def edit_event(client, message, args, event=None):
 
                 embed.description = "Enter the respective number or the end date.\n\n"
 
-                embed.description += "**1** Same day as start date\n"
-                embed.description += "**2** Never\n\n"
+                embed.description += "**1** Same day as start date\n\n" # \/ remove 2nd \n from this line when u do
+                embed.description += "**2** ~~Never~~ (Not Implemented)\n\n" # TODO IMPLEMENT NEVER ENDING EVENTS
 
                 embed.description += "> Friday at 9pm\n"
                 embed.description += "> Today/Tomorrow at 18:00\n"
@@ -1228,8 +1228,8 @@ async def edit_event(client, message, args, event=None):
                         event.repeating = 0
 
 
-                    elif mesge.content == "2": # never ending
-                        event.end_date = epoch
+                    # elif mesge.content == "2": # never ending # TODO SEE ABOVE DESCRIPTION
+                        # event.end_date = epoch
                         
 
                     elif a[0].lower() in days: # day at some_time
