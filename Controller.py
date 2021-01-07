@@ -149,8 +149,17 @@ async def on_message(message):
 
                 if is_mo:
                     if args[1] == "test":
-                        import Test
-                        await Test.test(client, message, args)
+                        
+                        e = Events.get_events(event_id=3)[0]
+                        e.guild = await client.fetch_guild(e.guild_id)
+                        await e.get_messages(client, urls=False)
+
+                        embed = e.to_embed()
+                        for m in e.messages:
+                            print(m)
+                            await m.edit(embed=embed)
+
+
                         return
                         
                     elif args[1] == "setavatar":

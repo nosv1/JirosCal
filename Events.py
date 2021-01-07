@@ -122,8 +122,8 @@ class Event:
                 self.messages.append(f"https://discord.com/channels/{entry[1]}/{entry[2]}/{entry[3]}")
 
             else:
-                channel = client.get_channel(entry[2])
-                channel = channel if channel else await client.fetch_channel(entry[2])
+                channel = client.get_channel(int(entry[2]))
+                channel = channel if channel else await client.fetch_channel(int(entry[2]))
 
                 try:
                     self.messages.append(await channel.fetch_message(int(entry[3])))
@@ -198,18 +198,25 @@ class Event:
             jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
             jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
 
-            if not self.edited and jc_guild.follow_channel: # send new messages
-                if type(jc_guild.follow_channel) == discord.channel.TextChannel:
-                    e = await simple_bot_response(jc_guild.follow_channel, send=False)
-                    self.embed.color = e.color
 
-                else:
-                    self.embed.color = Support.colors.jc_grey
+            if type(jc_guild.follow_channel) == discord.channel.TextChannel:
+                e = await simple_bot_response(jc_guild.follow_channel, send=False)
+                self.embed.color = e.color
 
+            else:
+                self.embed.color = Support.colors.jc_grey
+
+
+            if not self.edited:
                 self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
                 await self.messages[-1].add_reaction(Support.emojis.calendar_emoji)
 
-        # TODO HANDLE EDITED EVENTS
+            else:
+                self.messages = []
+                await self.get_messages(client, guild_id=g_id, urls=False)
+                if self.messages: # event message exists in guild
+                    await self.messages[0].edit(embed=self.embed)
+
 
         if not self.edited and self.messages: # save messages
             db = Database.connect_database()
@@ -289,7 +296,8 @@ class Event:
 
         db.connection.close()
 
-        return int(db.cursor.fetchall()[0][0])
+        if insert: # new event
+            self.id = int(db.cursor.fetchall()[0][0])
     # end edit_event
 
 
@@ -1533,7 +1541,7 @@ async def edit_event(client, message, args, event=None):
             # save it
             if not event.edited or crd == "done":
                 log("event", event.to_string())
-                event.id = event.edit_event(insert=not event.edited)
+                event.edit_event(insert=not event.edited)
 
                 # send it
                 embed = await simple_bot_response(msg.channel, send=False)
@@ -1545,15 +1553,8 @@ async def edit_event(client, message, args, event=None):
                 
                 if not event.edited:
                     embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
-                    await event.send(client)
-
-                else:
-                    await event.get_messages(client, urls=False)
-                    for m in event.messages:
-                        e = await simple_bot_response(m.channel, send=False)
-                        event.embed.color = e.color
-                        await m.edit(embed=event.embed)
-
+                    
+                await event.send(client)
                 event.update_upcoming_events()
 
                 break # natural break, loop only 'continues' if user types restart
