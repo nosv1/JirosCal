@@ -119,14 +119,14 @@ class Event:
 
         for entry in db.cursor.fetchall():
             if urls:
-                self.messages.append(f"https://discord.com/channels/{guild_id}/{entry[1]}/{entry[2]}")
+                self.messages.append(f"https://discord.com/channels/{entry[1]}/{entry[2]}/{entry[3]}")
 
             else:
-                channel = client.get_channel(entry[1])
-                channel = channel if channel else await client.fetch_channel(entry[1])
+                channel = client.get_channel(entry[2])
+                channel = channel if channel else await client.fetch_channel(entry[2])
 
                 try:
-                    self.messages.append(await channel.fetch_message(int(entry[2])))
+                    self.messages.append(await channel.fetch_message(int(entry[3])))
 
                 except discord.errors.NotFound: # message not found, or channel not found (not sure on this one)
                     pass
