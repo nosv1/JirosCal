@@ -436,7 +436,7 @@ async def main(client, message, args):
                 )
                 return
 
-            await edit_event(client, message, args, event=get_events(event_id=args[-2] if args[-2].isnumeric() else ""))
+            await edit_event(client, message, args, event=get_events(event_id=args[-2]) if args[-2].isnumeric() else None)
 
 
         elif args[1] in Support.delete_aliases and args[-2].isnumeric():
