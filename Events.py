@@ -216,6 +216,7 @@ class Event:
                 await self.get_messages(client, guild_id=g_id, urls=False)
                 if self.messages: # event message exists in guild
                     await self.messages[0].edit(embed=self.embed)
+                    pass
 
 
         if not self.edited and self.messages: # save messages
@@ -1078,6 +1079,10 @@ async def edit_event(client, message, args, event=None):
                     num = int(mesge.content)
                     if num and num <= len(tzs):
                         event.time_zone = timezone(tzs[num-1])
+
+                        if event.edited: # update start and end date with time zone
+                            event.start_date = event.start_date.astimezone(event.time_zone)
+                            event.end_date = event.end_date.astimezone(event.time_zone)
 
                         embed = embed.to_dict()
                         del embed["fields"] # #NoFields
