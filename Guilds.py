@@ -409,7 +409,7 @@ def get_followers(client, guild_id=""):
         elif int(f_id[0]) not in followers:
             followers += [int(f_id[0])]
 
-    return
+    return followers
 # end get_following
 
 
