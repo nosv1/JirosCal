@@ -597,7 +597,7 @@ async def send_calendar(client, message, user, days_span=28):
                 event_str = ""
 
                 delta =(e.start_date.date() - datetime.utcnow().date()).days
-                if days_span[0] >= delta:
+                if days_span[0] > delta:
                     continue
                 elif days_span[1] < delta:
                     break
