@@ -107,11 +107,13 @@ class Event:
     # end __init__
 
 
-    async def get_messages(self, client, guild_id=None, urls=True):
+    async def get_messages(self, client, guild_id="", urls=True):
         db = Database.connect_database()
         db.cursor.execute(f"""
             SELECT * FROM EventMessages
-            WHERE id = '{self.id}'
+            WHERE 
+                id = '{self.id}' AND
+                guild_id LIKE '%{guild_id}%'
         ;""")
         db.connection.close()
 
@@ -214,9 +216,9 @@ class Event:
             for m in self.messages:
                 db.cursor.execute(f"""
                     INSERT INTO EventMessages (
-                        `id`, `channel_id`, `message_id`
+                        `id`, `guild_id`, `channel_id`, `message_id`
                     ) VALUES (
-                        '{self.id}', '{m.channel.id}', '{m.id}'
+                        '{self.id}', '{m.guild.id if m.guild else m.author.id}', '{m.channel.id}', '{m.id}'
                     )
                 ;""")
             db.connection.commit()

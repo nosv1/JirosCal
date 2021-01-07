@@ -401,15 +401,15 @@ def get_followers(client, guild_id=""):
     ;""")
     db.connection.close()
 
-    followers = [guild_id]
+    followers = [guild_id] # important this goes first in the list
     for f_id in db.cursor.fetchall():
         if f_id[0] == "all":
             followers = [g.id for g in client.guilds]
 
-        else:
+        elif int(f_id[0]) not in followers:
             followers += [int(f_id[0])]
 
-    return list(set(followers))
+    return
 # end get_following
 
 
