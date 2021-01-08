@@ -384,7 +384,7 @@ class Event:
 
         embed.add_field(
             name=Support.emojis.space_char,
-            value=f"{Support.emojis.calendar_emoji} Upcoming Races",
+            value=f"{Support.emojis.calendar_emoji} to view Upcoming Races",
             inline=False
         )
 
