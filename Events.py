@@ -620,7 +620,7 @@ async def send_calendar(client, message, user, days_span=28):
                     event_str += f"\n**__{Support.smart_day_time_format('%A {S} %B %Y', e.start_date).replace(' 0', ' ')}__**\n"
 
 
-                event_str += f"[__`{e.start_date.strftime('%I:%M%p %Z').replace("AM ", "am ").replace("PM ", "pm ")}`__]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
+                event_str += f"[__`{e.start_date.strftime('%I:%M%p %Z').replace('AM ', 'am ').replace('PM ', 'pm ')}`__]({e.start_date.strftime(f'https://time.is/%I%M%p_%d_%b_%Y_{e.start_date.tzname()}')}) - [**{e.name}** (**{e.platform}**)]({e.messages[0] if e.messages else ''})\n"
 
                 event_str += f"Host: [{client.get_guild(e.guild_id)}]({e.invite_link})\n"
                 event_str += f"Type: {string.capwords(e.type)} ({'weekly' if e.repeating else f'every {e.repeating // 7} Weeks' if e.repeating else 'one-off'})\n\n"
