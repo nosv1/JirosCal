@@ -74,7 +74,7 @@ async def on_raw_message_edit(payload):
                 pass
 
     except discord.errors.NotFound:
-        await log("message edit erorr", traceback.format_exc())
+        await Logger.log_error("message edit erorr", traceback.format_exc())
     
     except:
         error = traceback.format_exc()
