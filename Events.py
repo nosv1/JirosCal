@@ -33,7 +33,8 @@ event_aliases = ["event", ] + championship_aliases + race_aliases + playlist_ali
 
 today_aliases = ["today", "day"]
 week_aliases = ["week", "thisweek"]
-calendar_aliases = ["calendar", "cal", "events"] + today_aliases + week_aliases
+days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+calendar_aliases = ["calendar", "cal", "events"] + today_aliases + week_aliases + days
 
 event_types = ["playlist", "endurance", "championship", "time-trial"]
 platforms = ["xbox", "pc", "ps", "cross-platform"]
@@ -555,15 +556,31 @@ async def send_calendar(client, message, user, days_span=28):
     embed.title = f"Upcoming Races "
 
     for a in args: # set days span based on args if called from command
-        if a in today_aliases:
-            days_span = 1
+
+        if a.lower() in today_aliases + days:
+            if a.lower() in days:
+
+                offset = 0
+                while type(days_span) != list:
+                    if days.index(a.lower()) == (datetime.utcnow() + relativedelta(days=offset)).weekday():
+                        days_span = [offset, offset + 1, 1]
+
+                    else:
+                        offset += 1
+                # end while
+
+            else:
+                days_span = [0, 1, 1]
+
             embed.title += "(24 hours)"
             break
         
         elif a in week_aliases:
-            days_span = 7
+            days_span = [0, 7, 7]
             embed.title += "(7 days)"
             break
+
+    days_span = [0, days_span, days_span] if type(days_span) != list else days_span
 
     embed.title += "(4 weeks)" if "(" not in embed.title else ""
 
@@ -580,7 +597,7 @@ async def send_calendar(client, message, user, days_span=28):
         else:
             upcoming_events = ue
     
-    if days_span == 1 and message.guild: # message sent in guild and reply in channel
+    if days_span[-1] == 1 and message.guild: # message sent in guild and reply in channel
         embed.color = Support.get_jc_from_channel(message.channel).roles[-1].color
     description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
     description += "The times link to online converters.\n"
@@ -591,8 +608,6 @@ async def send_calendar(client, message, user, days_span=28):
         e.start_date_utc = e.start_date.astimezone(timezone("UTC"))
 
     upcoming_events.sort(key=lambda e:e.start_date_utc)
-
-    days_span = [0, days_span, days_span] # 0 and 1 are changing, 2 is step
 
     try:
         count = 0
@@ -1129,7 +1144,6 @@ async def edit_event(client, message, args, event=None):
                 # set
                 if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
-                    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
                     relative_days = ["today", "tomorrow"]
 
                     if a[0].lower() in days: # day at some_time
