@@ -1249,7 +1249,6 @@ async def edit_event(client, message, args, event=None):
                 # set
                 if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
-                    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
                     relative_days = ["today", "tomorrow"]
 
                     if mesge.content == "1": # same as start date
