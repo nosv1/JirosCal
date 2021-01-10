@@ -77,7 +77,7 @@ async def whitelist(client, message, args):
     # GET MENTIONED HOST
 
     host_user_id = [m for m in re.findall(r"(<@!*\d{17,}>)", message.content) if Support.get_id_from_str(m) != jc.id]
-    host_user_id = Support.get_id_from_str(host_user_id[0])[0] if host_user_id else None
+    host_user_id = Support.get_id_from_str(host_user_id[-1])[0] if host_user_id else None
 
     if not host_user_id: # user not mentioned
         await simple_bot_response(message.channel,
