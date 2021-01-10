@@ -708,6 +708,7 @@ async def send_calendar(client, message, user, days_span=28):
     except asyncio.TimeoutError:
         try:
             embed.title += "\nTimed Out"
+            await Support.remove_reactions(msg, client.user, reactions)
             await msg.edit(embed=embed)
 
         except discord.errors.NotFound: # deleted message
