@@ -1031,7 +1031,7 @@ async def edit_event(client, message, args, event=None):
 
                 # prepare
                 embed.title = f"**What is the description for *{event.name}*?**"
-                embed.description = f"Provide a description of the event along with a link to a discord message ([back to server]({message.jump_url})) or anywhere event information can be found.\n\nType `None` to skip this step."
+                embed.description = f"Provide a short description of the event along with a link to a discord message ([back to server]({message.jump_url})) or anywhere event information can be found.\n\nType `None` to skip this step."
                 
                 # send
                 msg = await editor.send(embed=embed)
