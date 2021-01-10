@@ -34,7 +34,7 @@ event_aliases = ["event", ] + championship_aliases + race_aliases + playlist_ali
 today_aliases = ["today", "day"]
 week_aliases = ["week", "thisweek"]
 days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-calendar_aliases = ["calendar", "calender", "calandar", "calander", "cal", "events"] + today_aliases + week_aliases + days
+calendar_aliases = ["calendar", "calender", "calandar", "calander", "cal", "events", "all", "following"] + today_aliases + week_aliases + days
 
 event_types = ["playlist", "endurance", "championship", "time-trial"]
 platforms = ["xbox", "pc", "ps", "cross-platform"]
