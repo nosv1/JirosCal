@@ -17,6 +17,7 @@ from Support import simple_bot_response
 
 max_prefix_length = 30 # see Guild comment
 
+test_servers = [Support.ids.mobot_support_id, Support.ids.motestbots_id]
 
 
 ''' CLASS '''
@@ -353,7 +354,7 @@ async def set_follow_channel(client, message, args, author_perms):
     description = "Events from followed servers will now appear in this channel.\n\n"
 
     description += "**Following:**\n"
-    description += "\n".join([s.name for s in get_following(client, guild=jc_guild.guild, guild_id=jc_guild.id) if s])
+    description += "\n".join([s.name for s in get_following(client, guild=jc_guild.guild, guild_id=jc_guild.id) if s and s.id not in test_servers])
 
     await simple_bot_response(message.channel,
         title="Event Channel Specified",
@@ -475,7 +476,6 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
 
     embed = await simple_bot_response(message.channel, send=False)
 
-    test_servers = [Support.ids.mobot_support_id, Support.ids.motestbots_id]
     if edited:
         embed.title = f"**Following {'a New Server' if args[2] != 'all' else 'All Servers'}**" if not unfollow else f"Unfollowed {'a Server' if args[2] != 'all' else 'All Servers'}"
 
