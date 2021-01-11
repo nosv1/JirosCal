@@ -208,7 +208,7 @@ class Event:
                 self.embed.color = Support.colors.jc_grey
 
 
-            if not self.edited:
+            if jc_guild.follow_channel and not self.edited:
                 self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
                 await self.messages[-1].add_reaction(Support.emojis.calendar_emoji)
 
@@ -1561,6 +1561,7 @@ async def edit_event(client, message, args, event=None):
             if not event.edited or crd == "done":
                 log("event", event.to_string())
                 event.edit_event(insert=not event.edited)
+                event.update_upcoming_events()
 
                 # send it
                 embed = await simple_bot_response(msg.channel, send=False)
@@ -1574,7 +1575,6 @@ async def edit_event(client, message, args, event=None):
                     embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
                     
                 await event.send(client)
-                event.update_upcoming_events()
 
                 break # natural break, loop only 'continues' if user types restart
         # end while
