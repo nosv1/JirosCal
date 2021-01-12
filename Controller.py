@@ -330,7 +330,7 @@ async def on_raw_reaction_add(payload):
                         await Events.send_calendar(client, message, user)
                         remove_reaction = True
 
-                    if payload.emoji.name == Support.emojis.bell_emoji: # bell emoji
+                    if payload.emoji.name == Support.emojis.loudspeaker_emoji: # loudspeaker emoji
                         await Guilds.follow_server(client, message, [], user)
 
 
