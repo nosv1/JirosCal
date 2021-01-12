@@ -1,5 +1,6 @@
 ''' IMPORTS '''
 
+import discord
 import mysql.connector
 import validators
 
