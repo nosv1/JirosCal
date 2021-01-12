@@ -494,8 +494,12 @@ async def follow_server(client, message, args, user, unfollow=False):
 
         if not event:
             await message.channel.send(embed=embed)
+
         else:
-            await user.send(embed=embed)
+            try:
+                await user.send(embed=embed)
+            except discord.errors.Forbidden:
+                await Support.process_complete_reaction(message, remove=True, rejected=True)
 
     elif not unfollow:
         
