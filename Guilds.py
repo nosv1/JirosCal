@@ -765,7 +765,7 @@ async def set_reminders(client, message, user):
                     embed.description += f"> **{i+1}** - {r.text}\n"
 
 
-            embed.description += "\nFollow the templates, but insert your own values. Max of 2 weeks before event.\n"
+            embed.description += "\nFollow the templates, but insert your own values.\nLimits: 2 weeks before event, 3 reminders\n"
 
             embed.description += "> 30 minutes\n"
             embed.description += "> 1 hour and 30 minutes\n"
@@ -816,6 +816,8 @@ async def set_reminders(client, message, user):
                         )
                     )
                     reminders[-1].text = " ".join(a)
+                    reminders = reminders[-3:]
+                    
                     
                 elif len(a[:-1]) == 1:
                     if a[0].isnumeric() and 1 <= int(a[0]) <= len(reminders):
