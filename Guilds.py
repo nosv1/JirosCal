@@ -744,7 +744,7 @@ async def set_reminders(client, message, user):
 
             # cancel or restart or done
             if crd:
-                await Events.cancel(embed, user) if crd == "cancel" else ""
+                await cancel(embed, user) if crd == "cancel" else ""
                 break
 
             # prepare
