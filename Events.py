@@ -386,7 +386,7 @@ class Event:
 
         embed.add_field(
             name=Support.emojis.space_char,
-            value=f"{Support.emojis.calendar_emoji} Upcoming Races **|** {Support.emojis.loudspeaker_emoji} Follow Host **|** {Support.emojis.bell_emoji} ~~Set Reminder~~ (Coming Soon)",
+            value=f"{Support.emojis.calendar_emoji} Upcoming Races **|** {Support.emojis.loudspeaker_emoji} Follow Host (DMs) **|** {Support.emojis.bell_emoji} Set Reminder (DMs)",
             inline=False
         )
 
@@ -461,14 +461,16 @@ async def main(client, message, args):
 # end main
 
 
-async def get_upcoming_events(client, guild_id="", _break=0):
+async def get_upcoming_events(client, event_id="", guild_id="", _break=0):
     """
     """
 
     db = Database.connect_database()
     db.cursor.execute(f"""
         SELECT * FROM UpcomingEvents 
-        WHERE break LIKE '%{_break}%'
+        WHERE 
+            id LIKE '%{event_id}%' AND
+            break LIKE '%{_break}%'
     ;""")
     db.connection.close()
 
@@ -933,7 +935,7 @@ async def edit_event(client, message, args, event=None):
                 embed.description = "Enter the number that matches the event's type.\n\n"
 
                 for i, event_type in enumerate(event_types):
-                    embed.description += f"**{i+1}** {string.capwords(event_type)}\n"
+                    embed.description += f"**{i+1}** - {string.capwords(event_type)}\n"
             
                 # send
                 msg = await editor.send(embed=embed)
@@ -974,7 +976,7 @@ async def edit_event(client, message, args, event=None):
                 embed.description = f"Enter the number that matches the platform for this {event.type}.\n\n"
 
                 for i, platform in enumerate(platforms):
-                    embed.description += f"**{i+1}** {string.capwords(platform) if len(platform) != 2 else platform.upper()}\n" # upper PC and PS
+                    embed.description += f"**{i+1}** - {string.capwords(platform) if len(platform) != 2 else platform.upper()}\n" # upper PC and PS
             
                 # send
                 msg = await editor.send(embed=embed)
@@ -1078,7 +1080,7 @@ async def edit_event(client, message, args, event=None):
                         for tz_name in time_zones[continent][i]: # {name : time zone}
                             tz = time_zones[continent][i][tz_name]
                             tzs.append(tz)
-                            value += f"**{len(tzs)}** {tz_name}\n"
+                            value += f"**{len(tzs)}** - {tz_name}\n"
 
                     value += Support.emojis.space_char
                     embed.add_field(name=continent, value=value, inline=True)
@@ -1465,7 +1467,7 @@ async def edit_event(client, message, args, event=None):
 
 
                 for i, w in enumerate(event.weeks):
-                    embed.description += f"**{i+1}** {Support.smart_day_time_format('%a {S} %b %Y', w)}\n"
+                    embed.description += f"**{i+1}** - {Support.smart_day_time_format('%a {S} %b %Y', w)}\n"
 
                 embed.description += "*only showing next 2 months*" if event.end_date.date() == epoch.date() else ""
 

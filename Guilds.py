@@ -1,7 +1,11 @@
 ''' IMPORTS '''
 
+import asyncio
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import discord
 import mysql.connector
+from pytz import timezone
 import validators
 
 import Database
@@ -132,6 +136,70 @@ class Guild:
     # end display_prefix
 # end Guild
 
+class Reminder:
+    def __init__(self, event_id=None, user_id=None, offset=0, date=None):
+        self.event_id = event_id
+        self.user_id = user_id
+        self.offset = offset # as minutes 
+        self.date = date # as datetime in correct time zone
+
+        self.text = "" # 1 week or 2 days ... etc
+        self.event = None
+    # end __init__
+
+
+    async def send(self, client):
+        """
+        """
+
+        embed = discord.Embed(color=Support.colors.jc_grey)
+        embed.title = "**Event Reminder**"
+
+        embed.description = f"*[{self.event.name}]({self.event.invite_link})* starts in {self.text}."
+
+        user = await client.fetch_user(self.user_id)
+        await user.send(embed=embed)
+    # end send
+
+
+    def edit_reminders(self, reminders):
+        """
+            reminders is a list of Reminders
+        """
+
+        db = Database.connect_database()
+        db.cursor.execute(f"""
+            DELETE FROM Reminders 
+            WHERE 
+                event_id = '{self.event_id}' AND
+                discord_id = '{self.user_id}'
+        """)
+
+        for r in reminders:
+            db.cursor.execute(f"""
+                INSERT INTO Reminders (
+                    `event_id`, `discord_id`, `offset`
+                ) VALUES (
+                    '{r.event_id}',
+                    '{r.user_id}',
+                    '{r.offset}'
+                )
+            """)
+        db.connection.commit()
+        db.connection.close()
+    # end edit_reminders
+
+
+    def to_string(self):
+        return (
+            f"Event ID: {self.event_id}, " +
+            f"User ID: {self.user_id}, " +
+            f"Offset: {self.offset}, " +
+            f"Date: {self.date}"
+        )
+    # end to_string
+# end Reminder
+
 
 
 ''' FUNCTIONS '''
@@ -155,6 +223,7 @@ def get_jc_guild(guild_id):
 
     return jc_guild
 # end get_jc_guild
+
 
 
 ## PREFIXES ##
@@ -258,6 +327,7 @@ async def set_prefix(message, args, author_perms):
 # end set_prefix
 
 
+
 ## INVITE LINKS ##
 
 def get_guild_invite_link(guild_id):
@@ -324,6 +394,7 @@ async def set_invite_link(message, args, author_perms):
 
     jc_guild.edit_guild()
 # end set_invite_link
+
 
 
 ## FOLLOWING EVENTS ##
@@ -421,17 +492,18 @@ async def follow_server(client, message, args, user, unfollow=False):
         check for local server = follow server
     """
 
+    jc = Support.get_jc_from_channel(message.channel)
+
     event = None
-    if message.author.bot:
-        print(message.embeds[0].to_dict())
+    if not args:
         event = Events.get_events(event_id=message.embeds[0].footer.text.split(":")[1].strip())[0]
 
 
-    if not message.author.bot and message.guild and not Support.get_member_perms(message.channel, user).manage_messages:
+    if args and message.guild and not Support.get_member_perms(message.channel, user).manage_messages:
         await Support.missing_permission('Manage Messages', message)
         return
 
-    guild = message.guild if message.guild and not message.author.bot else user
+    guild = message.guild if message.guild and args else user
     jc_guild = get_jc_guild(guild.id)
 
 
@@ -454,6 +526,7 @@ async def follow_server(client, message, args, user, unfollow=False):
     if args and args[2] == "all": # follow all servers
         edited = True
         jc_guild.following_ids = ["all"] if not unfollow else []
+
 
     else: # follow specific server
         jc_guild.following_ids = [s.id for s in get_following(client, jc_guild.guild, jc_guild.id) if s]
@@ -488,10 +561,14 @@ async def follow_server(client, message, args, user, unfollow=False):
     embed = await simple_bot_response(message.channel, send=False)
 
     if edited:
-        embed.title = f"**Following {'a New Server' if args and args[2] != 'all' else 'All Servers'}**" if not unfollow else f"Unfollowed {'a Server' if args and args[2] != 'all' else 'All Servers'}"
+        embed.title = f"**Following {'a New Server' if (args and args[2] != 'all') or not args else 'All Servers'}**" if not unfollow else f"Unfollowed {'a Server' if (args and args[2] != 'all') or not args else 'All Servers'}"
 
         embed.description = "**Following:**\n"
         embed.description += "\n".join([s.name for s in jc_guild.following if s.id not in test_servers])
+
+        if not args:
+            embed.set_footer(text=f"@{jc} unfollow <all/server_name>")
+
 
         if not event:
             await message.channel.send(embed=embed)
@@ -552,3 +629,214 @@ async def display_following(client, message, args):
 
     await message.channel.send(embed=embed)
 # end display_following
+
+
+
+## REMINDERS ##
+
+
+async def get_reminders(client, event_id="", user_id=""):
+    """
+    """
+
+    db = Database.connect_database()
+    db.cursor.execute(f"""
+        SELECT * FROM Reminders
+        WHERE
+            event_id LIKE '%{event_id}%' AND
+            discord_id LIKE '%{user_id}%'
+    """)
+    db.connection.close()
+    
+    reminders = []
+    for r in db.cursor.fetchall():
+
+        ue = await Events.get_upcoming_events(client, event_id=r[0])
+
+        for u in ue:
+            now = timezone("UTC").localize(datetime.utcnow()).astimezone(u.time_zone)
+            if u.start_date > now:
+                ue = u
+                break
+
+        if type(ue) == Events.Event:
+
+            reminders.append(
+                Reminder(
+                    event_id=r[0], # event_id
+                    user_id=int(r[1]), # user id
+                    offset=int(r[2]), # offset minutes
+                    date=ue.start_date - relativedelta(minutes=int(r[2])) # reminder date
+                )
+            )
+
+            reminders[-1].event = ue
+
+
+            weeks =  reminders[-1].offset // (60 * 24 * 7)
+            days = (reminders[-1].offset - weeks * 60 * 24 * 7) // (60 * 24)
+            hours = (reminders[-1].offset - (weeks * 60 * 24 * 7) - days * 60 * 24) // 60
+            minutes = (reminders[-1].offset - (weeks * 60 * 24 * 7) - (days * 60 * 24) - (hours * 60))
+
+            text = []
+            text += [f"{weeks} week{'s' if weeks > 1 else ''}"] if weeks else []
+            text += [f"{days} day{'s' if days > 1 else ''}"] if days else []
+            text += [f"{hours} hour{'s' if hours > 1 else ''}"] if hours else []
+            text += [f"{minutes} minute{'s' if minutes > 1 else ''}"] if minutes else []
+
+            reminders[-1].text = " and ".join(text)
+
+
+    return reminders
+# end get_reminders
+
+
+async def set_reminders(client, message, user):
+    """
+        assuming coming from bell on event message
+    """
+
+    msg = None
+    def message_check(m):
+        return (
+            m.channel.id == msg.channel.id and
+            m.author.id == user.id
+        )
+    # end message_check
+
+    async def cancel(embed, editor, timed_out=False):
+        embed.title = discord.Embed().Empty
+        embed.description = f"**Cancelled** ([back to server]({message.jump_url}))" if not timed_out else "**Timed Out**"
+        embed.set_footer(text=discord.Embed().Empty)
+        await editor.send(embed=embed)
+    # end cancel
+
+
+    embed = discord.Embed(color=Support.colors.jc_grey)
+
+
+    event = Events.get_events(event_id=message.embeds[0].footer.text.split(":")[1].strip())[0]
+    upcoming_event = await Events.get_upcoming_events(client, event_id=event.id)
+
+    now = timezone("UTC").localize(datetime.utcnow()).astimezone(event.time_zone)
+
+    for e in upcoming_event:
+        if e.start_date > now:
+            upcoming_event = e
+            break
+
+    if type(upcoming_event) != Events.Event:
+        embed.title = "Cannot Set Reminder"
+        embed.description = f"There is not an upcoming starting date for *{event.name}*."
+        try:
+            await user.send(embed=embed)
+        except discord.errors.Forbidden:
+            await Support.process_complete_reaction(message, remove=True, rejected=True)
+        return
+    
+
+    reminders = await get_reminders(client, event_id=event.id, user_id=user.id)
+
+
+    crd = "" # cancel or done
+    try:
+        while True:
+
+            # cancel or restart or done
+            if crd:
+                await Events.cancel(embed, user) if crd == "cancel" else ""
+                break
+
+            # prepare
+            embed.description = ""
+            if not reminders:
+                embed.title = f"**When would you like to receive reminders for *{event.name}*?**"
+                embed.description = "This process loops, so only type one reminder at a time.\n"
+                embed.set_footer(text="cancel | done")
+
+
+            else:
+                embed.title =f"**Would you like to set another reminder?**"
+                
+                embed.description += "\nEnter a number to delete the reminder.\n"
+
+                reminders.sort(key=lambda r: r.offset)
+                for i, r in enumerate(reminders):
+                    embed.description += f"> **{i+1}** - {r.text}\n"
+
+
+            embed.description += "\nFollow the templates, but insert your own values. Max of 2 weeks before event.\n"
+
+            embed.description += "> 30 minutes\n"
+            embed.description += "> 1 hour and 30 minutes\n"
+            embed.description += "> 1 day\n"
+            embed.description += "> 1 week\n"
+
+
+            # send
+            msg = await user.send(embed=embed)
+
+
+            # wait
+            mesge = await client.wait_for("message", check=message_check, timeout=300)
+            crd = mesge.content.lower() if mesge.content.lower() in ["cancel", "done"] else ""
+
+            if not crd:
+                a, c = Support.get_args_from_content(mesge.content)
+                units = ["minute", "hour", "day", "week"]
+                minutes = 0
+
+                i = len(a) - 1
+                while i > 0:
+                    for unit in units:
+                        if unit in a[i].lower():
+                            if a[i-1].isnumeric():
+
+                                value = int(a[i-1])
+                                multiplier = 1
+                                if unit == "week":
+                                    multiplier = 60 * 24 * 7
+
+                                if unit == "day":
+                                    multiplier = 60 * 24
+
+                                elif unit == "hour":
+                                    multiplier = 60
+
+                                minutes += value * multiplier
+                    i -= 1
+                # end while
+
+                if minutes and minutes <= 60 * 24 * 14:
+                    reminders.append(
+                        Reminder(
+                            event_id=event.id, 
+                            user_id=user.id, 
+                            offset=minutes
+                        )
+                    )
+                    reminders[-1].text = " ".join(a)
+                    
+                elif len(a[:-1]) == 1:
+                    if a[0].isnumeric() and 1 <= int(a[0]) <= len(reminders):
+                        del reminders[int(a[0])-1]
+
+
+            # save it
+            if crd == "done":
+                Reminder(event_id=event.id, user_id=user.id).edit_reminders(reminders)
+
+                embed.title = discord.Embed().Empty
+                embed.set_footer(text=discord.Embed().Empty)
+                embed.description = f"**{len(reminders)} reminder{'s' if len(reminders) != 1 else ''} set.**"
+                await user.send(embed=embed)
+
+                break
+        # end while
+
+    except asyncio.TimeoutError:
+        await cancel(embed, user, timed_out=True)
+
+    except discord.errors.Forbidden:
+        await Support.process_complete_reaction(message, remove=True, rejected=True)
+# end set_reminder

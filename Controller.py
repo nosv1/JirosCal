@@ -20,6 +20,7 @@ import Guilds
 import Help
 import Logger
 from Logger import log
+import LoopController
 import Support
 import Whitelist
 
@@ -313,7 +314,10 @@ async def on_raw_reaction_add(payload):
         jc = Support.get_jc_from_channel(message.channel)
 
         remove_reaction = False
-        if user: # message and user are found
+        if user and (
+            (os.getenv("HOST") == "PC" and user.id == Support.ids.mo_id) or 
+            os.getenv("HOST") == "PI4"
+        ): # message and user are found
 
             if not user.bot: # not bot reaction
 
@@ -330,8 +334,13 @@ async def on_raw_reaction_add(payload):
                         await Events.send_calendar(client, message, user)
                         remove_reaction = True
 
-                    if payload.emoji.name == Support.emojis.loudspeaker_emoji: # loudspeaker emoji
+
+                    elif payload.emoji.name == Support.emojis.loudspeaker_emoji: # loudspeaker emoji
                         await Guilds.follow_server(client, message, [], user)
+
+                    
+                    if payload.emoji.name == Support.emojis.bell_emoji: # bell emoji
+                        await Guilds.set_reminders(client, message, user)
 
 
                 ## EMBED CHECKS ##
@@ -445,9 +454,11 @@ async def startup():
     global restart
     await client.wait_until_ready()
 
+
     connected = True
     restart = 1
     log("Connection", f"{host} Controller Connected")
+
 
     await client.change_presence(
         activity=discord.Activity(
@@ -455,6 +466,13 @@ async def startup():
         ),
         status=discord.Status.online
     )
+
+    
+    ''' STARTING LOOPS '''
+
+    if not LoopController.send_reminders.is_running():
+        Logger.log('Loop controller', 'Send Reminders Loop Starting')
+        LoopController.send_reminders.start(client)
 # end startup
 
 log("Connection", f"{host} Controller Connecting")
