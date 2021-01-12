@@ -1562,7 +1562,7 @@ async def edit_event(client, message, args, event=None):
             # save it
             if not event.edited or crd == "done":
                 log("event", event.to_string())
-                event.edit_event(insert=not event.edited)
+                event.edit_event(insert=(not event.edited or event.copied))
                 event.update_upcoming_events()
 
                 # send it
