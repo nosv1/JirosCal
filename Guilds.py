@@ -625,7 +625,7 @@ async def display_following(client, message, args):
     jc_guild.following = get_following(client, jc_guild.guild, jc_guild.id)
 
     embed.description = "**Following:**\n"
-    embed.description += "\n".join([s.name for s in jc_guild.following ])
+    embed.description += "\n".join([s.name for s in jc_guild.following if s.id not in test_servers])
 
     await message.channel.send(embed=embed)
 # end display_following
