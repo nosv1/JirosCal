@@ -749,10 +749,10 @@ async def set_reminders(client, message, user):
 
             # prepare
             embed.description = ""
+            embed.set_footer(text="cancel | done")
             if not reminders:
                 embed.title = f"**When would you like to receive reminders for *{event.name}*?**"
                 embed.description = "This process loops, so only type one reminder at a time.\n"
-                embed.set_footer(text="cancel | done")
 
 
             else:
@@ -817,7 +817,7 @@ async def set_reminders(client, message, user):
                     )
                     reminders[-1].text = " ".join(a)
                     reminders = reminders[-3:]
-                    
+
                     
                 elif len(a[:-1]) == 1:
                     if a[0].isnumeric() and 1 <= int(a[0]) <= len(reminders):
