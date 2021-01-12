@@ -225,7 +225,7 @@ async def on_message(message):
                 
                 ## EVENTS ##
 
-                elif args[1] in Support.create_aliases + Support.edit_aliases + Support.delete_aliases:
+                elif args[1] in Support.create_aliases + Support.edit_aliases + Support.delete_aliases + Support.copy_aliases:
                     await Events.main(client, message, args)
 
                 elif args[1] in Events.calendar_aliases:
@@ -245,7 +245,7 @@ async def on_message(message):
                     await Guilds.set_follow_channel(client, message, args, author_perms)
 
                 elif args[1] in ["follow", "unfollow"]:
-                    await Guilds.follow_server(client, message, args, author_perms, unfollow=args[1] == "unfollow")
+                    await Guilds.follow_server(client, message, args, message.author, unfollow=args[1] == "unfollow")
 
                 elif args[1] == "following":
                     await Guilds.display_following(client, message, args)
@@ -329,6 +329,9 @@ async def on_raw_reaction_add(payload):
                     if payload.emoji.name == Support.emojis.calendar_emoji: # calendar emoji
                         await Events.send_calendar(client, message, user)
                         remove_reaction = True
+
+                    if payload.emoji.name == Support.emojis.bell_emoji: # bell emoji
+                        await Guilds.follow_server(client, message, [], user)
 
 
                 ## EMBED CHECKS ##

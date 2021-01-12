@@ -5,6 +5,7 @@ import validators
 
 import Database
 from Database import replace_chars
+import Events
 import Guilds
 import Help
 from Logger import log
@@ -414,16 +415,22 @@ def get_followers(client, guild_id=""):
 # end get_following
 
 
-async def follow_server(client, message, args, author_perms, unfollow=False):
+async def follow_server(client, message, args, user, unfollow=False):
     """
         check for local server = follow server
     """
 
-    if message.guild and not author_perms.manage_messages:
+    event = None
+    if message.author.bot:
+        print(message.embeds[0].to_dict())
+        event = Events.get_events(event_id=message.embeds[0].footer.text.split(":")[1].strip())[0]
+
+
+    if not message.author.bot and message.guild and not Support.get_member_perms(message.channel, user).manage_messages:
         await Support.missing_permission('Manage Messages', message)
         return
 
-    guild = message.guild if message.guild else message.author
+    guild = message.guild if message.guild and not message.author.bot else user
     jc_guild = get_jc_guild(guild.id)
 
 
@@ -436,14 +443,14 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
         jc_guild.guild = guild 
         
     else:
-        jc_guild.guild = message.author
-        jc_guild.follow_channel_id = message.author.id
+        jc_guild.guild = user
+        jc_guild.follow_channel_id = user.id
 
     jc_guild.edit_guild()
 
 
     edited = False
-    if args[2] == "all": # follow all servers
+    if args and args[2] == "all": # follow all servers
         edited = True
         jc_guild.following_ids = ["all"] if not unfollow else []
 
@@ -452,11 +459,14 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
 
         for guild in client.guilds:
 
-            if message.author.id != Support.ids.mo_id and guild.id in [Support.ids.mobot_support_id, Support.ids.motestbots_id]: # can't follow testing servers
+            if user.id != Support.ids.mo_id and guild.id in [Support.ids.mobot_support_id, Support.ids.motestbots_id]: # can't follow testing servers
                 continue
 
             a1, c1 = Support.get_args_from_content(guild.name.lower())
-            if " ".join(a1).lower() == " ".join(args[2:]).lower():
+            if (
+                " ".join(a1).lower() == " ".join(args[2:]).lower() or 
+                (event and guild.id == event.guild_id)
+            ):
                 edited = True
 
                 if not unfollow:
@@ -477,12 +487,15 @@ async def follow_server(client, message, args, author_perms, unfollow=False):
     embed = await simple_bot_response(message.channel, send=False)
 
     if edited:
-        embed.title = f"**Following {'a New Server' if args[2] != 'all' else 'All Servers'}**" if not unfollow else f"Unfollowed {'a Server' if args[2] != 'all' else 'All Servers'}"
+        embed.title = f"**Following {'a New Server' if args and args[2] != 'all' else 'All Servers'}**" if not unfollow else f"Unfollowed {'a Server' if args and args[2] != 'all' else 'All Servers'}"
 
         embed.description = "**Following:**\n"
         embed.description += "\n".join([s.name for s in jc_guild.following if s.id not in test_servers])
 
-        await message.channel.send(embed=embed)
+        if not event:
+            await message.channel.send(embed=embed)
+        else:
+            await user.send(embed=embed)
 
     elif not unfollow:
         
