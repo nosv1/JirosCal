@@ -211,14 +211,17 @@ class Event:
 
             if jc_guild.follow_channel and (not self.edited or self.copied):
                 self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
-                await self.messages[-1].add_reaction(Support.emojis.calendar_emoji)
 
             else:
                 self.messages = []
                 await self.get_messages(client, guild_id=g_id, urls=False)
                 if self.messages: # event message exists in guild
                     await self.messages[0].edit(embed=self.embed)
-                    pass
+                
+            
+            if self.messages:
+                for r in [Support.emojis.calendar_emoji, Support.emojis.loudspeaker_emoji, Support.emojis.bell_emoji]:
+                    await self.messages[-1].add_reaction(r)
 
 
         if (not self.edited or self.copied) and self.messages: # save messages
