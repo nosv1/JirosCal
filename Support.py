@@ -72,6 +72,7 @@ emojis = SimpleNamespace(**{
     "left_arrow_emoji" : "◀️",
     "right_arrow_emoji": "▶️",
     "calendar_emoji" : "📆",
+    "bell_emoji" : "🔔",
     "letter_emojis" : {"a" : "🇦", "b" : "🇧", "c" : "🇨", "d" : "🇩", "e" : "🇪", "f" : "🇫", "g" : "🇬", "h" : "🇭", "i" : "🇮", "j" : "🇯", "k" : "🇰", "l" : "🇱", "m" : "🇲", "n" : "🇳", "o" : "🇴", "p" : "🇵", "q" : "🇶", "r" : "🇷", "s" : "🇸", "t" : "🇹", "u" : "🇺", "v" : "🇻", "w" : "🇼", "x" : "🇽", "y" : "🇾", "z" : "🇿"}
 })
 
@@ -81,6 +82,7 @@ remove_aliases = ["remove", "-",]
 delete_aliases = ["delete", "purge", "clear", "del"] + remove_aliases
 create_aliases = ["create", "new"] + add_aliases
 edit_aliases = ["edit"]
+copy_aliases = ["copy", "duplicate"]
 
 
 ''' SUPPORT FUNCTIONS '''

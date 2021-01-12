@@ -34,7 +34,7 @@ event_aliases = ["event", ] + championship_aliases + race_aliases + playlist_ali
 today_aliases = ["today", "day"]
 week_aliases = ["week", "thisweek"]
 days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-calendar_aliases = ["calendar", "calender", "calandar", "calander", "cal", "events", "all", "following"] + today_aliases + week_aliases + days
+calendar_aliases = ["calendar", "calender", "calandar", "calander", "cal", "events", "all"] + today_aliases + week_aliases + days
 
 event_types = ["playlist", "endurance", "championship", "time-trial"]
 platforms = ["xbox", "pc", "ps", "cross-platform"]
@@ -100,6 +100,7 @@ class Event:
         self.repeating = repeating # as days -- Weekly, Every N Weeks, Never
         self.invite_link = invite_link # jc_guild.invite_link
 
+        self.copied = False
         self.edited = False
         self.embed = None
         self.messages = [] # these may be discord.message.Message or jump_urls
@@ -208,7 +209,7 @@ class Event:
                 self.embed.color = Support.colors.jc_grey
 
 
-            if jc_guild.follow_channel and not self.edited:
+            if jc_guild.follow_channel and (not self.edited or self.copied):
                 self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
                 await self.messages[-1].add_reaction(Support.emojis.calendar_emoji)
 
@@ -220,7 +221,7 @@ class Event:
                     pass
 
 
-        if not self.edited and self.messages: # save messages
+        if (not self.edited or self.copied) and self.messages: # save messages
             db = Database.connect_database()
             for m in self.messages:
                 db.cursor.execute(f"""
@@ -385,7 +386,7 @@ class Event:
 
         embed.add_field(
             name=Support.emojis.space_char,
-            value=f"{Support.emojis.calendar_emoji} to view Upcoming Races",
+            value=f"{Support.emojis.calendar_emoji} Upcoming Races **|** {Support.emojis.bell_emoji} Follow Host",
             inline=False
         )
 
@@ -439,9 +440,9 @@ async def main(client, message, args):
 
     if author_is_host:
 
-        if args[1] in Support.create_aliases + Support.edit_aliases:
+        if args[1] in Support.create_aliases + Support.edit_aliases + Support.copy_aliases:
 
-            if args[1] in Support.create_aliases and not message.guild:
+            if args[1] in Support.create_aliases + Support.copy_aliases and not message.guild:
                 await simple_bot_response(message.channel,
                     description=f"**This command must be used in the host server.**",
                     reply_message=message
@@ -775,6 +776,7 @@ async def edit_event(client, message, args, event=None):
                     event.break_weeks = event.break_weeks if event.break_weeks else "None"
 
                 event.edited = True
+                event.copied = args[1] in Support.copy_aliases
 
                 editing = None
                 while not editing:
@@ -1230,7 +1232,7 @@ async def edit_event(client, message, args, event=None):
 
                 embed.description = "Enter the respective number or the end date.\n\n"
 
-                embed.description += "**1** Same day as start date\n\n" # \/ remove 2nd \n from this line when u do
+                embed.description += "**1** Same day as start date\n" # \/ remove 2nd \n from this line when u do
                 embed.description += "**2** ~~Never~~ (Not Implemented)\n\n" # TODO IMPLEMENT NEVER ENDING EVENTS
 
                 embed.description += "> Friday at 9pm\n"
@@ -1569,10 +1571,9 @@ async def edit_event(client, message, args, event=None):
                 event.embed.color = embed.color
                 await editor.send(embed=event.embed)
                 
-                embed = event.to_embed()
-                
-                if not event.edited:
+                if not event.edited or event.copied:
                     embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
+                    await event.editor.send(embed=embed)
                     
                 await event.send(client)
 

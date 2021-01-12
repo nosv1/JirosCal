@@ -25,12 +25,12 @@
         {
             "inline": false,
             "name": "**See upcoming races**",
-            "value": "`@JirosCal#7363 calendar [all/following]`\ndefaults to following\n\n\"calendar\" aliases: \n`today`, `day`, `week`\n\u2800"
+            "value": "`@JirosCal#7363 calendar [all]`\ndefaults to following\n\n\"calendar\" aliases: \n`today`, `day`, `week`, `\"weekdays\"`\n\u2800"
         },
         {
             "inline": false,
             "name": "**Create, edit, and delete events**",
-            "value": "`@JirosCal#7363 create`\n`@JirosCal#7363 edit/delete <event_id>`\n\u2800"
+            "value": "`@JirosCal#7363 create`\n`@JirosCal#7363 edit/delete/copy <event_id>`\n\u2800"
         },
         {
             "inline": false,
