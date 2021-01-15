@@ -590,19 +590,19 @@ async def send_calendar(client, message, user, days_span=28):
 
     embed.title += "(4 weeks)" if "(" not in embed.title else ""
 
-
     for server in jc_guild.following:
         following = server.id
-        if message.author.id != client.user.id:
+        if message.author.id != client.user.id: # from user
             following = '' if args[-2] == "all" else following
 
 
-        ue = await get_upcoming_events(client, following)
+        ue = await get_upcoming_events(client, guild_id=following)
         if following:
             upcoming_events += ue
         else:
             upcoming_events = ue
-    
+
+
     if days_span[-1] == 1 and message.guild: # message sent in guild and reply in channel
         embed.color = Support.get_jc_from_channel(message.channel).roles[-1].color
     description = f"`@{client.user} calendar all` to view all upcoming races.\n\n" if args and args[-2] != "all" else ''
