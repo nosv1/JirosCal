@@ -464,7 +464,7 @@ async def main(client, message, args):
 # end main
 
 
-async def get_upcoming_events(client, event_id="", guild_id="", _break=0):
+async def get_upcoming_events(client, event_id="%%", guild_id="", _break=0):
     """
     """
 
@@ -472,7 +472,7 @@ async def get_upcoming_events(client, event_id="", guild_id="", _break=0):
     db.cursor.execute(f"""
         SELECT * FROM UpcomingEvents 
         WHERE 
-            id LIKE '%{event_id}%' AND
+            id LIKE '{event_id}' AND
             break LIKE '%{_break}%'
     ;""")
     db.connection.close()
@@ -516,7 +516,7 @@ def get_event_from_entry(entry):
 # end get_event_from_entry
 
 
-def get_events(event_id="", guild_id=""):
+def get_events(event_id="%%", guild_id=""):
     """
     """
 
@@ -525,7 +525,7 @@ def get_events(event_id="", guild_id=""):
         SELECT * FROM Events
         WHERE 
             guild_id LIKE '%{guild_id}%' AND
-            id LIKE '%{event_id}%'
+            id LIKE '{event_id}'
     ;""")
     db.connection.close()
 
@@ -628,7 +628,7 @@ async def send_calendar(client, message, user, days_span=28):
                 await e.get_messages(client, e.guild_id)
                 event_str = ""
 
-                delta =(e.start_date.date() - datetime.utcnow().date()).days
+                delta = (e.start_date.date() - datetime.utcnow().date()).days
                 if days_span[0] > delta:
                     continue
                 elif days_span[1] < delta:
@@ -687,7 +687,7 @@ async def send_calendar(client, message, user, days_span=28):
 
 
             # reactions
-            if days_span[0] != 0: # more to the left
+            if True or days_span[0] != 0: # more to the left
                 await msg.add_reaction(reactions[0])
             
             if upcoming_events and upcoming_events[-1] != e: # more to the right

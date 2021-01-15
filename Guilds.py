@@ -635,7 +635,7 @@ async def display_following(client, message, args):
 ## REMINDERS ##
 
 
-async def get_reminders(client, event_id="", user_id=""):
+async def get_reminders(client, event_id="%%", user_id=""):
     """
     """
 
@@ -643,7 +643,7 @@ async def get_reminders(client, event_id="", user_id=""):
     db.cursor.execute(f"""
         SELECT * FROM Reminders
         WHERE
-            event_id LIKE '%{event_id}%' AND
+            event_id LIKE '{event_id}' AND
             discord_id LIKE '%{user_id}%'
     """)
     db.connection.close()
