@@ -96,7 +96,7 @@ class Event:
         self.start_date = start_date # datetime.datetime() -- time_format1 (constant)
         self.start_date_utc = None
         self.end_date = end_date # as a date (not time), same as start, none, new date
-        self.duration = duration # as seconds
+        self.duration = duration # as minutes
         self.repeating = repeating # as days -- Weekly, Every N Weeks, Never
         self.invite_link = invite_link # jc_guild.invite_link
 
@@ -215,6 +215,7 @@ class Event:
             else:
                 self.messages = []
                 await self.get_messages(client, guild_id=g_id, urls=False)
+                print(self.messages)
                 if self.messages: # event message exists in guild
                     await self.messages[0].edit(embed=self.embed)
                 
@@ -353,8 +354,14 @@ class Event:
         value += "**Duration:** "
         if self.duration: # duration
 
-            hours = self.duration // (60 * 60) # 60 * 60 cause duration is in seconds
-            minutes = (self.duration // 60) - (hours * 60) # // 60 cause ^^
+            # self.duration in minutes
+            weeks = self.duration // (60 * 24 * 7)
+            days = (self.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
+            hours = (self.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60)) // 60
+            minutes = (self.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60) - (hours * 60)) // 1
+
+            if days:
+                value += f"{days} day{'s' if days > 1 else ''} "
 
             if hours:
                 value += f"{hours} hour{'s' if hours > 1 else ''} "
@@ -409,7 +416,7 @@ class Event:
             f"Time Zone: {self.time_zone}, " + 
             f"Start Date: {self.start_date}, " +
             f"End Date: {self.end_date}, " +
-            f"Duration: {self.duration} seconds, " +
+            f"Duration: {self.duration} minutes, " +
             f"Repeating: {self.repeating} days, " +
             f"Break Weeks: {self.break_weeks}, " +
             f"Invite Link: {self.invite_link}, " +
@@ -827,8 +834,16 @@ async def edit_event(client, message, args, event=None):
 
                     embed.description += "\n**8 - Duration**" # duration
                     d = ""
-                    hours = event.duration // (60 * 60) # 60 * 60 cause duration is in seconds
-                    minutes = (event.duration // 60) - (hours * 60) # // 60 cause ^^
+                    weeks = event.duration // (60 * 24 * 7)
+                    days = (event.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
+                    hours = (event.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60)) // 60
+                    minutes = (event.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60) - (hours * 60)) // 1
+
+                    if weeks:
+                        d += f"{weeks} week{'s' if days > 1 else ''} "
+
+                    if days:
+                        d += f"{days} day{'s' if days > 1 else ''} "
 
                     if hours:
                         d += f"{hours} hour{'s' if hours > 1 else ''} "
@@ -1348,11 +1363,12 @@ async def edit_event(client, message, args, event=None):
                 # prepare
                 embed.title = f"**How long is *{event.name}*?**"
 
-                embed.description = "Type `None` for no duration.\n\n"
+                embed.description = "Type `None` for no duration. Max 2 months.\n\n"
 
                 embed.description += "> 2 hours\n"
                 embed.description += "> 45 minutes\n"
                 embed.description += "> 1 hour and 30 minutes\n"
+                embed.description += "> 1 week and 2 days\n"
 
                 # send
                 msg = await editor.send(embed=embed)
@@ -1366,23 +1382,38 @@ async def edit_event(client, message, args, event=None):
                 # set
                 if not crd:
                     a, c = Support.get_args_from_content(mesge.content)
-                    units = ["hour", "minute"]
-                    seconds = 0
+                    units = ["week", "day", "hour", "minute"]
+                    minutes = 0
 
                     i = len(a) - 1
                     while i > 0:
                         for unit in units:
                             if unit in a[i].lower():
                                 if a[i-1].isnumeric():
-                                    seconds += (int(a[i-1]) * (60 if unit == "hour" else 1)) * 60
+
+                                    multiplier = 1
+
+                                    if unit == "week":
+                                        multiplier = 60 * 24 * 7 
+                                    
+                                    elif unit == "day":
+                                        multiplier = 60 * 24
+                                    
+                                    elif unit == "hour":
+                                        multiplier = 60
+                                    
+                                    elif unit == "minute":
+                                        multiplier = 1
+
+                                    minutes += int(a[i-1]) * multiplier
                         i -= 1
                     # end while
 
-                    if seconds:
-                        event.duration = seconds
+                    if minutes and minutes <= 99999: # five digits
+                        event.duration = minutes
 
                         if event.end_date == event.start_date: # only if an end date was not given and is not none, adjust
-                            event.end_date += relativedelta(seconds=seconds)
+                            event.end_date += relativedelta(minutes=minutes)
 
                     elif mesge.content.lower() == "none":
                         event.duration = 0
@@ -1566,9 +1597,7 @@ async def edit_event(client, message, args, event=None):
 
             # save it
             if not event.edited or crd == "done":
-                log("event", event.to_string())
                 event.edit_event(insert=(not event.edited or event.copied))
-                event.update_upcoming_events()
 
                 # send it
                 embed = await simple_bot_response(msg.channel, send=False)
@@ -1581,6 +1610,7 @@ async def edit_event(client, message, args, event=None):
                     await event.editor.send(embed=embed)
                     
                 await event.send(client)
+                event.update_upcoming_events()
 
                 break # natural break, loop only 'continues' if user types restart
         # end while
