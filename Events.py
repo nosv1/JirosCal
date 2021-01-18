@@ -360,7 +360,7 @@ class Event:
             hours = (self.duration - (weeks * 60 * 24 * 7) - (days_ * 24 * 60)) // 60
             minutes = (self.duration - (weeks * 60 * 24 * 7) - (days_ * 24 * 60) - (hours * 60)) // 1
 
-            if days:
+            if days_:
                 value += f"{days_} day{'s' if days_ > 1 else ''} "
 
             if hours:
@@ -842,7 +842,7 @@ async def edit_event(client, message, args, event=None):
                     if weeks:
                         d += f"{weeks} week{'s' if days_ > 1 else ''} "
 
-                    if days:
+                    if days_:
                         d += f"{days_} day{'s' if days_ > 1 else ''} "
 
                     if hours:
