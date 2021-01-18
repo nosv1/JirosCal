@@ -835,15 +835,15 @@ async def edit_event(client, message, args, event=None):
                     embed.description += "\n**8 - Duration**" # duration
                     d = ""
                     weeks = event.duration // (60 * 24 * 7)
-                    days = (event.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
-                    hours = (event.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60)) // 60
-                    minutes = (event.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60) - (hours * 60)) // 1
+                    days_ = (event.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
+                    hours = (event.duration - (weeks * 60 * 24 * 7) - (days_ * 24 * 60)) // 60
+                    minutes = (event.duration - (weeks * 60 * 24 * 7) - (days_ * 24 * 60) - (hours * 60)) // 1
 
                     if weeks:
-                        d += f"{weeks} week{'s' if days > 1 else ''} "
+                        d += f"{weeks} week{'s' if days_ > 1 else ''} "
 
                     if days:
-                        d += f"{days} day{'s' if days > 1 else ''} "
+                        d += f"{days_} day{'s' if days_ > 1 else ''} "
 
                     if hours:
                         d += f"{hours} hour{'s' if hours > 1 else ''} "
