@@ -356,12 +356,12 @@ class Event:
 
             # self.duration in minutes
             weeks = self.duration // (60 * 24 * 7)
-            days = (self.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
-            hours = (self.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60)) // 60
-            minutes = (self.duration - (weeks * 60 * 24 * 7) - (days * 24 * 60) - (hours * 60)) // 1
+            days_ = (self.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
+            hours = (self.duration - (weeks * 60 * 24 * 7) - (days_ * 24 * 60)) // 60
+            minutes = (self.duration - (weeks * 60 * 24 * 7) - (days_ * 24 * 60) - (hours * 60)) // 1
 
             if days:
-                value += f"{days} day{'s' if days > 1 else ''} "
+                value += f"{days_} day{'s' if days_ > 1 else ''} "
 
             if hours:
                 value += f"{hours} hour{'s' if hours > 1 else ''} "
