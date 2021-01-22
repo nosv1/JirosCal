@@ -215,7 +215,6 @@ class Event:
             else:
                 self.messages = []
                 await self.get_messages(client, guild_id=g_id, urls=False)
-                print(self.messages)
                 if self.messages: # event message exists in guild
                     await self.messages[0].edit(embed=self.embed)
                 
@@ -466,7 +465,7 @@ async def main(client, message, args):
             await delete_event(client, message, args, get_events(event_id=args[-2]))
 
     else:
-        author_not_host()
+        await author_not_host()
 
 # end main
 
