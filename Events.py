@@ -766,6 +766,11 @@ async def edit_event(client, message, args, event=None):
         crd = "" # cancel or restart or done
         while True or event and event.edited: 
 
+            if crd == "restart":
+                event = None
+                crd = ""
+                
+
             if not event:
                 event = Event()
                 event.guild = message.guild if message.guild else message.author
