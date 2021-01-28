@@ -195,13 +195,14 @@ class Event:
         self.embed = self.to_embed()
 
         for g_id in Guilds.get_followers(client, guild_id=self.guild.id):
+
+            jc_guild = Guilds.get_jc_guild(g_id)
+
+            jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
+            jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
+
+
             try:
-                jc_guild = Guilds.get_jc_guild(g_id)
-
-                jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
-                jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
-
-
                 if type(jc_guild.follow_channel) == discord.channel.TextChannel:
                     e = await simple_bot_response(jc_guild.follow_channel, send=False)
                     self.embed.color = e.color
@@ -212,6 +213,7 @@ class Event:
 
                 if jc_guild.follow_channel and (not self.edited or self.copied):
                     self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
+                    log("sending event", f"sent to {jc_guild.guild} {jc_guild.follow_channel}")
 
                 else:
                     self.messages = []
@@ -220,6 +222,7 @@ class Event:
                         await self.messages[0].edit(embed=self.embed)
             
             except:
+                log("sending event", f"failed to send to {g_id} {jc_guild.follow_channel_id}")
                 await Logger.log_error(client, traceback.format_exc())
                 
             
@@ -1614,8 +1617,12 @@ async def edit_event(client, message, args, event=None):
                 await editor.send(embed=event.embed)
                 
                 if not event.edited or event.copied:
-                    embed.description = f"**Sending to {len(Guilds.get_followers(client, guild_id=event.guild_id))} followers.**"
-                    await event.editor.send(embed=embed)
+                    num_followers = len(Guilds.get_followers(client, guild_id=event.guild_id))
+
+                    embed.description = f"**Sending to {num_followers} followers.**"
+                    await event.editor.send(embed=embed))
+
+                    log('sending event', f'sending [ {event.to_string()} ] to {num_followers} followers')
                     
                 await event.send(client)
                 event.update_upcoming_events()
