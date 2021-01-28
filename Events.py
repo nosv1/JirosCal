@@ -195,28 +195,32 @@ class Event:
         self.embed = self.to_embed()
 
         for g_id in Guilds.get_followers(client, guild_id=self.guild.id):
-            jc_guild = Guilds.get_jc_guild(g_id)
+            try:
+                jc_guild = Guilds.get_jc_guild(g_id)
 
-            jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
-            jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
-
-
-            if type(jc_guild.follow_channel) == discord.channel.TextChannel:
-                e = await simple_bot_response(jc_guild.follow_channel, send=False)
-                self.embed.color = e.color
-
-            else:
-                self.embed.color = Support.colors.jc_grey
+                jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
+                jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
 
 
-            if jc_guild.follow_channel and (not self.edited or self.copied):
-                self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
+                if type(jc_guild.follow_channel) == discord.channel.TextChannel:
+                    e = await simple_bot_response(jc_guild.follow_channel, send=False)
+                    self.embed.color = e.color
 
-            else:
-                self.messages = []
-                await self.get_messages(client, guild_id=g_id, urls=False)
-                if self.messages: # event message exists in guild
-                    await self.messages[0].edit(embed=self.embed)
+                else:
+                    self.embed.color = Support.colors.jc_grey
+
+
+                if jc_guild.follow_channel and (not self.edited or self.copied):
+                    self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
+
+                else:
+                    self.messages = []
+                    await self.get_messages(client, guild_id=g_id, urls=False)
+                    if self.messages: # event message exists in guild
+                        await self.messages[0].edit(embed=self.embed)
+            
+            except:
+                await Logger.log_error(client, traceback.format_exc())
                 
             
             if self.messages:
