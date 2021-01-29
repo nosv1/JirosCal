@@ -213,13 +213,16 @@ class Event:
 
                 if jc_guild.follow_channel and (not self.edited or self.copied):
                     self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
-                    log("sending event", f"sent to {jc_guild.guild} {jc_guild.follow_channel}")
+                    log("sending event", f"sent to {jc_guild.follow_channel.guild} {jc_guild.follow_channel}")
 
-                else:
+                elif self.edited:
                     self.messages = []
                     await self.get_messages(client, guild_id=g_id, urls=False)
                     if self.messages: # event message exists in guild
                         await self.messages[0].edit(embed=self.embed)
+                    
+                else: # channel likely doesn't exist
+                    log("sending event", f"could not send to {g_id} {jc_guild.follow_channel_id}")
             
             except:
                 log("sending event", f"failed to send to {g_id} {jc_guild.follow_channel_id}")
