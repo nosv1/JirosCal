@@ -1620,7 +1620,7 @@ async def edit_event(client, message, args, event=None):
                     num_followers = len(Guilds.get_followers(client, guild_id=event.guild_id))
 
                     embed.description = f"**Sending to {num_followers} followers.**"
-                    await event.editor.send(embed=embed))
+                    await event.editor.send(embed=embed)
 
                     log('sending event', f'sending [ {event.to_string()} ] to {num_followers} followers')
                     
