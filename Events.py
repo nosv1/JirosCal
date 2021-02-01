@@ -213,7 +213,7 @@ class Event:
 
                 if jc_guild.follow_channel and (not self.edited or self.copied):
                     self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
-                    log("sending event", f"sent to {jc_guild.follow_channel.guild if jc_guild.follow_channel.guild else 'None'} {jc_guild.follow_channel}")
+                    log("sending event", f"sent to {jc_guild.follow_channel.guild if jc_guild.follow_channel.guild else jc_guild.follow_channel} {jc_guild.follow_channel}")
 
                 elif self.edited:
                     self.messages = []
