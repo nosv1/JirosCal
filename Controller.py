@@ -98,6 +98,7 @@ async def on_message(message):
     try:
         # prep message content for use
         args, mc = Support.get_args_from_content(message.content)
+        command = args[1].lower()
 
         ## BEGIN CHECKS ##
 
@@ -149,7 +150,7 @@ async def on_message(message):
                 ## MO ##
 
                 if is_mo:
-                    if args[1] == "test":
+                    if command == "test":
                         
                         e = Events.get_events(event_id=3)[0]
                         e.guild = await client.fetch_guild(e.guild_id)
@@ -163,17 +164,17 @@ async def on_message(message):
 
                         return
                         
-                    elif args[1] == "setavatar":
+                    elif command == "setavatar":
                         with open('Images/logo.png', 'rb') as f:
                             await client.user.edit(avatar=f.read())
                         return
 
-                    elif args[1] == "name":
+                    elif command == "name":
                         await client.user.edit(username="JirosCal")
                         print('edited')
                         return
 
-                    elif args[1] == "guild":
+                    elif command == "guild":
                         guild = client.get_guild(int(args[2]))
 
                         description = f"**Members:** {len(guild.members)}\n"
@@ -188,8 +189,8 @@ async def on_message(message):
                         )
                         return
 
-                    elif args[1] in ["close", "shutdown", "stop", "restart"]:
-                        restart, msg  = await Support.restart(client, message, restart_interval, restart=args[1] == "restart")
+                    elif command in ["close", "shutdown", "stop", "restart"]:
+                        restart, msg  = await Support.restart(client, message, restart_interval, restart=command == "restart")
 
                         restart_time = datetime.utcnow() + relativedelta(seconds=restart_interval) # set new restart time
                         await asyncio.sleep(restart_interval)
@@ -207,48 +208,48 @@ async def on_message(message):
                 
                 ## HELP + GENERAL ##
 
-                # if args[1] in ["?", "search"]:
+                # if command in ["?", "search"]:
                     # await Help.search(message, args)
 
-                if args[1] in Help.help_aliases[:3] + ["commands", "cmds"]:
+                if command in Help.help_aliases[:3] + ["commands", "cmds"]:
                     e = await Support.simple_bot_response(message.channel, send=False)
                     h_embed = Support.load_embed_from_Embeds("Embeds/command_list.json")
                     h_embed.color = e.color
                     await message.channel.send(embed=h_embed)
                     # await Help.send_help_embed(client, message, Help.help_links.general)
 
-                # elif args[1] in ["commands", "cmds"]:
+                # elif command in ["commands", "cmds"]:
                     # await Help.send_help_embed(client, message, Help.help_links.command_list_1)
 
-                elif args[1] in ["whitelist", "wl"]:
+                elif command in ["whitelist", "wl"]:
                     await Whitelist.whitelist(client, message, args)
 
                 
                 ## EVENTS ##
 
-                elif args[1] in Support.create_aliases + Support.edit_aliases + Support.delete_aliases + Support.copy_aliases:
+                elif command in Support.create_aliases + Support.edit_aliases + Support.delete_aliases + Support.copy_aliases:
                     await Events.main(client, message, args)
 
-                elif args[1] in Events.calendar_aliases:
+                elif command in Events.calendar_aliases:
                     await Events.send_calendar(client, message, message.author)
 
 
                 
                 ## GUILDS ##
 
-                elif args[1] == "prefix":
+                elif command == "prefix":
                     jc_guild, guild_prefixes = await Guilds.set_prefix(message, args, author_perms)
 
-                elif args[1] == "link": 
+                elif command == "link": 
                     await Guilds.set_invite_link(message, args, author_perms)
 
-                elif args[1] == "here":
+                elif command == "here":
                     await Guilds.set_follow_channel(client, message, args, author_perms)
 
-                elif args[1] in ["follow", "unfollow"]:
-                    await Guilds.follow_server(client, message, args, message.author, unfollow=args[1] == "unfollow")
+                elif command in ["follow", "unfollow"]:
+                    await Guilds.follow_server(client, message, args, message.author, unfollow=command == "unfollow")
 
-                elif args[1] == "following":
+                elif command == "following":
                     await Guilds.display_following(client, message, args)
 
 
@@ -264,7 +265,7 @@ async def on_message(message):
                         reply_message=message
                     )
 
-                    if args[1]: # >= 1 arg given, gimme that insight
+                    if prefix: # >= 1 arg given, gimme that insight
                         await Logger.log_error(client, f"command not recognized {message.content}")
 
                 ''' END COMMAND CHECKS '''
