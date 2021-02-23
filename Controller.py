@@ -265,7 +265,7 @@ async def on_message(message):
                         reply_message=message
                     )
 
-                    if prefix: # >= 1 arg given, gimme that insight
+                    if command: # >= 1 arg given, gimme that insight
                         await Logger.log_error(client, f"command not recognized {message.content}")
 
                 ''' END COMMAND CHECKS '''
