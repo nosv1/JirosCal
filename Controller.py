@@ -363,9 +363,9 @@ async def on_raw_reaction_add(payload):
     except AttributeError: # possibly NoneType.fetch_message, happens in DMs after bot is restarted
         error = traceback.format_exc()
 
-    #except discord.errors.NotFound: # bot aint finding messages...
+    except discord.errors.NotFound: # bot aint finding messages...
      #   Logger.log_error(traceback.format_exc())
-      #  return
+        return
 
     except discord.errors.Forbidden:
         error = traceback.format_exc()
