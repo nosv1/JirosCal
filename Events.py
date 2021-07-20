@@ -204,31 +204,31 @@ class Event:
                 jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
 
 
-            try:
-                if type(jc_guild.follow_channel) == discord.channel.TextChannel:
-                    e = await simple_bot_response(jc_guild.follow_channel, send=False)
-                    self.embed.color = e.color
+                try:
+                    if type(jc_guild.follow_channel) == discord.channel.TextChannel:
+                        e = await simple_bot_response(jc_guild.follow_channel, send=False)
+                        self.embed.color = e.color
 
-                else:
-                    self.embed.color = Support.colors.jc_grey
+                    else:
+                        self.embed.color = Support.colors.jc_grey
 
 
-                if jc_guild.follow_channel and (not self.edited or self.copied):
-                    self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
-                    log("sending event", f"sent to {jc_guild.follow_channel.guild if type(jc_guild.follow_channel) == discord.channel.TextChannel else jc_guild.follow_channel} {jc_guild.follow_channel}")
+                    if jc_guild.follow_channel and (not self.edited or self.copied):
+                        self.messages.append(await jc_guild.follow_channel.send(embed=self.embed))
+                        log("sending event", f"sent to {jc_guild.follow_channel.guild if type(jc_guild.follow_channel) == discord.channel.TextChannel else jc_guild.follow_channel} {jc_guild.follow_channel}")
 
-                elif self.edited:
-                    self.messages = []
-                    await self.get_messages(client, guild_id=g_id, urls=False)
-                    if self.messages: # event message exists in guild
-                        await self.messages[0].edit(embed=self.embed)
-                    
-                else: # channel likely doesn't exist
-                    log("sending event", f"could not send to {g_id} {jc_guild.follow_channel_id}")
-            
-            except:
-                log("sending event", f"failed to send to {g_id} {jc_guild.follow_channel_id}")
-                await Logger.log_error(client, traceback.format_exc())
+                    elif self.edited:
+                        self.messages = []
+                        await self.get_messages(client, guild_id=g_id, urls=False)
+                        if self.messages: # event message exists in guild
+                            await self.messages[0].edit(embed=self.embed)
+                        
+                    else: # channel likely doesn't exist
+                        log("sending event", f"could not send to {g_id} {jc_guild.follow_channel_id}")
+                
+                except:
+                    log("sending event", f"failed to send to {g_id} {jc_guild.follow_channel_id}")
+                    await Logger.log_error(client, traceback.format_exc())
                 
             
             if self.messages:
