@@ -198,8 +198,10 @@ class Event:
 
             jc_guild = Guilds.get_jc_guild(g_id)
 
-            jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
-            jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
+            if jc_guild: # guilds can create events without setting anything up, therefore not being in the db
+
+                jc_guild.follow_channel = client.get_channel(jc_guild.follow_channel_id)
+                jc_guild.follow_channel = jc_guild.follow_channel if jc_guild.follow_channel else client.get_user(jc_guild.follow_channel_id)
 
 
             try:
