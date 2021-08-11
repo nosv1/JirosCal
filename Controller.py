@@ -303,9 +303,11 @@ async def on_raw_reaction_add(payload):
     error = False
     try:
 
-        message = await channel.fetch_message(message_id)
+
+        m = [m for m in client.cached_messages if m.id == payload.message_id]
+        message = m[0] if m else m
         if not message:
-            return
+            message = await channel.fetch_message(message_id)
 
         is_dm = message.channel.type == discord.ChannelType.private
 
