@@ -800,7 +800,7 @@ async def edit_event(client, message, args, event=None):
                 event.editor_id = message.author.id
 
                 if not event.edited:
-                    ue = [e.start_date for e in await get_upcoming_events(client, _break="")] # get all the weeks
+                    ue = [e.start_date for e in await get_upcoming_events(client, event_id=event.id, _break="")] # get all the weeks
                     event.break_weeks = [ue.index(e.start_date) + 1 for e in await get_upcoming_events(client, event_id=event.id, _break=1)]
                     event.break_weeks = event.break_weeks if event.break_weeks else "None"
 
