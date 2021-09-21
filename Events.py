@@ -801,7 +801,7 @@ async def edit_event(client, message, args, event=None):
 
                 if not event.edited:
                     ue = [e.start_date for e in await get_upcoming_events(client, _break="")] # get all the weeks
-                    event.break_weeks = [ue.index(e.start_date) + 1 for e in await get_upcoming_events(client, _break=1)]
+                    event.break_weeks = [ue.index(e.start_date) + 1 for e in await get_upcoming_events(client, event_id=event.id, _break=1)]
                     event.break_weeks = event.break_weeks if event.break_weeks else "None"
 
                 event.edited = True
@@ -883,7 +883,7 @@ async def edit_event(client, message, args, event=None):
 
 
                     embed.description += "\n**10 - Break Weeks**" # break weeks
-                    embed.description += f"```{', '.join(str(bw) for bw in event.break_weeks) if event.break_weeks != [] else event.break_weeks} ```"
+                    embed.description += f"```{', '.join(str(bw) for bw in event.break_weeks) if event.break_weeks != 'None' else event.break_weeks} ```"
 
                     embed.description += "\n**11 - Invite Link**"
                     embed.description += f"```{event.invite_link} ```"
