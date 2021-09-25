@@ -76,7 +76,7 @@ epoch = timezone("UTC").localize(datetime.utcfromtimestamp(0))
 
 ''' CLASS '''
 class Event:
-    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, description=None, time_zone=None, start_date=None, end_date=None, duration=None, repeating=None, invite_link=None):
+    def __init__(self, event_id=None, guild_id=None, creator_id=None, editor_id=None, event_type=None, platform=None, name=None, description=None, time_zone=None, start_date=None, end_date=None, duration=None, repeating=None, invite_link=None, image_url=None):
         self.id = event_id
 
         self.guild_id = guild_id
@@ -99,6 +99,7 @@ class Event:
         self.duration = duration # as minutes
         self.repeating = repeating # as days -- Weekly, Every N Weeks, Never
         self.invite_link = invite_link # jc_guild.invite_link
+        self.image_url = image_url
 
         self.copied = False
         self.edited = False
