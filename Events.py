@@ -412,7 +412,7 @@ class Event:
             inline=False
         )
 
-        if self.image_url:
+        if validators.url(self.image_url):
             embed.set_image(url=self.image_url)
 
         return embed
@@ -1109,7 +1109,7 @@ async def edit_event(client, message, args, event=None):
 
                 # prepare
                 embed.title = f"Do you have a promotional image for *{event.name}*?"
-                embed.description = f"Provide a link to the image to include it in the event message."
+                embed.description = f"Provide a link to the image to include it in the event message.\n\nType `None` to skip this step.""
 
                 # send
                 msg = await editor.send(embed=embed)
