@@ -263,7 +263,7 @@ class Event:
 
             db.cursor.execute(f"""
                 INSERT INTO Events (
-                    `guild_id`, `creator_id`, `editor_id`, `type`, `platform`, `name`, `description`, `time_zone`, `start_date`, `end_date`, `duration`, `repeating`, `invite_link`
+                    `guild_id`, `creator_id`, `editor_id`, `type`, `platform`, `name`, `description`, `time_zone`, `start_date`, `end_date`, `duration`, `repeating`, `invite_link`, `image_url`
 
                 ) VALUES (
 
@@ -279,7 +279,8 @@ class Event:
                     '{self.end_date.strftime(time_format1)}',
                     '{self.duration}',
                     '{self.repeating}',
-                    '{replace_chars(self.invite_link)}'
+                    '{replace_chars(self.invite_link)}',
+                    '{self.image_url}'
 
                 )
             ;""")
