@@ -411,6 +411,9 @@ class Event:
             inline=False
         )
 
+        if self.image_url:
+            embed.set_image(url=self.image_url)
+
         return embed
     # end to_embed
 
@@ -525,6 +528,7 @@ def get_event_from_entry(entry):
         duration=int(entry[11]),
         repeating=int(entry[12]),
         invite_link=entry[13],
+        image_url=entry[14]
     )
 
     e.start_date = e.time_zone.localize(e.start_date)
@@ -839,17 +843,20 @@ async def edit_event(client, message, args, event=None):
                     embed.description += "\n**4 - Description**"
                     embed.description += f"```{event.description.strip()[:30]}{'...' if len(event.description) > 30 else ''} ```"
 
-                    embed.description += "\n**5 - Time Zone**"
+                    embed.description += "\n**5 - Image URL**"
+                    embed.description += f"```{event.image_url}```"
+
+                    embed.description += "\n**6 - Time Zone**"
                     embed.description += f"```{event.start_date.tzname()} ```"
 
-                    embed.description += "\n**6 - Start**"
+                    embed.description += "\n**7 - Start**"
                     embed.description += f"```{Support.smart_day_time_format('%a {S} %b %Y - %I:%M%p %Z', event.start_date)} ```"
 
-                    embed.description += "\n**7 - End**"
+                    embed.description += "\n**8 - End**"
                     embed.description += f"```{'Never' if event.end_date.date() == epoch.date() else Support.smart_day_time_format('%a {S} %b %Y - %I:%M%p %Z', event.end_date)} ```"
 
 
-                    embed.description += "\n**8 - Duration**" # duration
+                    embed.description += "\n**9 - Duration**" # duration
                     d = ""
                     weeks = event.duration // (60 * 24 * 7)
                     days_ = (event.duration - (weeks * 60 * 24 * 7)) // (60 * 24)
@@ -871,7 +878,7 @@ async def edit_event(client, message, args, event=None):
                     embed.description += f"```{d} ```"
 
 
-                    embed.description += "\n**9 - Repeating**" # repeating
+                    embed.description += "\n**10 - Repeating**" # repeating
                     r = ""
                     if event.repeating == 7:
                         r += "Weekly"
@@ -882,10 +889,10 @@ async def edit_event(client, message, args, event=None):
                     embed.description += f"```{r if r else 'Never'} ```"
 
 
-                    embed.description += "\n**10 - Break Weeks**" # break weeks
+                    embed.description += "\n**11 - Break Weeks**" # break weeks
                     embed.description += f"```{', '.join(str(bw) for bw in event.break_weeks) if event.break_weeks != 'None' else event.break_weeks} ```"
 
-                    embed.description += "\n**11 - Invite Link**"
+                    embed.description += "\n**12 - Invite Link**"
                     embed.description += f"```{event.invite_link} ```"
 
                     embed.set_footer(text="cancel | done")
@@ -911,26 +918,29 @@ async def edit_event(client, message, args, event=None):
 
                     elif mesge.content == "4":
                         event.description = None
-
+                        
                     elif mesge.content == "5":
-                        event.time_zone = None
+                        event.image_url = None
 
                     elif mesge.content == "6":
-                        event.start_date = None
+                        event.time_zone = None
 
                     elif mesge.content == "7":
-                        event.end_date = None
+                        event.start_date = None
 
                     elif mesge.content == "8":
-                        event.duration = None
+                        event.end_date = None
 
                     elif mesge.content == "9":
-                        event.repeating = None
+                        event.duration = None
 
                     elif mesge.content == "10":
-                        event.break_weeks = []
+                        event.repeating = None
 
                     elif mesge.content == "11":
+                        event.break_weeks = []
+
+                    elif mesge.content == "12":
                         event.invite_link = None
 
 
@@ -1082,6 +1092,40 @@ async def edit_event(client, message, args, event=None):
                 # set
                 if not crd:
                     event.description = mesge.content
+
+                # cancel or restart or done
+                if crd == "cancel":
+                    await cancel(embed, editor)
+                    break
+
+                elif crd == "restart":
+                    continue
+
+
+            ''' GET EVENT IMAGE URL '''
+
+            if not event.image_url:
+
+                # prepare
+                embed.title = f"Do you have a promotional image for *{event.name}*?"
+                embed.description = f"Provide a link to the image to include it in the event message."
+
+                # send
+                msg = await editor.send(embed=embed)
+
+                # wait
+                mesge = await client.wait_for("message", check=message_check, timeout=300)
+                crd = mesge.content.lower() if mesge.content.lower() in ["cancel", "restart", "done"] else ""
+
+                # set
+                if not crd:
+                    a, c = Support.get_args_from_content(mesge.content)
+
+                    if validators.url(a[0]):
+                        event.image_url = a[0]
+
+                    elif a[0].lower() == "none":
+                        event.image_url = "None"
 
                 # cancel or restart or done
                 if crd == "cancel":
@@ -1652,6 +1696,7 @@ async def edit_event(client, message, args, event=None):
         )
         await Support.remove_reactions(message, client.user, Support.emojis.tick_emoji)
 # end edit_event
+
 
 async def delete_event(client, message, args, event):
     """
