@@ -476,12 +476,15 @@ def get_followers(client, guild_id=""):
     db.connection.close()
 
     followers = [guild_id] # important this goes first in the list
-    for f_id in db.cursor.fetchall():
-        if f_id[0] == "all":
-            followers = [g.id for g in client.guilds if g.id not in test_servers]
+    if guild_id not in test_servers:
+        
+        for f_id in db.cursor.fetchall():
 
-        elif int(f_id[0]) not in followers:
-            followers += [int(f_id[0])]
+            if f_id[0] == "all":
+                followers = [g.id for g in client.guilds]
+
+            elif int(f_id[0]) not in followers:
+                followers += [int(f_id[0])]
 
     return followers
 # end get_following
