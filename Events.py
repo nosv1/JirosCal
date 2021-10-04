@@ -699,7 +699,7 @@ async def send_calendar(client, message, user, days_span=28):
 
             # send it, yes it may be sent in the loop as well
             if days_span[-1] == 1: # send to current channel if only showing today's events
-                await message.channel.trigger_typing()
+                # await message.channel.trigger_typing()
                 msg = await message.channel.send(embed=embed)
                 break
 
