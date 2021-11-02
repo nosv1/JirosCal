@@ -413,7 +413,7 @@ class Event:
             inline=False
         )
 
-        if validators.url(self.image_url):
+        if self.image_url and validators.url(self.image_url):
             embed.set_image(url=self.image_url)
 
         return embed
