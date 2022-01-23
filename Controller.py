@@ -478,9 +478,23 @@ async def startup():
         LoopController.send_reminders.start(client)
 # end startup
 
-log("Connection", f"{host} Controller Connecting")
 
-client.loop.create_task(startup())
+def main():
+    while True:
+        client.loop.create_task(startup())
 
-client.run(os.getenv("TOKEN"))
-print(restart)
+        if host == "PC":
+            bot_token = os.getenv("PROTO_TOKEN")  # used for testing
+            log("Using PROTO_TOKEN")
+
+        else:
+            bot_token = os.getenv("JIROSCAL_TOKEN")
+            log("Using JIROSCAL_TOKEN")
+        
+        client.run(bot_token)
+
+        print(restart)
+
+    
+if __name__ == "__main__":
+    main()

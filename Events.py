@@ -468,12 +468,17 @@ async def main(client, message, args):
 
         if args[1] in Support.create_aliases + Support.edit_aliases + Support.copy_aliases:
 
-            if args[1] in Support.create_aliases + Support.copy_aliases and not message.guild:
+            if not message.guild:
                 await simple_bot_response(message.channel,
                     description=f"**This command must be used in the host server.**",
                     reply_message=message
                 )
                 return
+
+            if re.findall(r"(https:\/\/discord\.gg\/\S+\?event=\d+)", args[2]):
+                await send_discord_event(client, message, args)
+                return
+
 
             await edit_event(client, message, args, event=get_events(event_id=args[-2]) if args[-2].isnumeric() else None)
 
@@ -555,6 +560,25 @@ def get_events(event_id="%%", guild_id=""):
 
     return [get_event_from_entry(entry) for entry in db.cursor.fetchall()]
 # end get_events
+
+
+async def send_discord_event(client: discord.Client, message: discord.Message, args: list[str]):
+
+    for guild_id in Guilds.get_followers(client, guild_id=message.guild.id):
+        
+        jc_guild: Guilds.Guild = Guilds.get_jc_guild(guild_id)
+
+        if jc_guild:
+
+            try:
+                follow_channel = client.get_channel(jc_guild.follow_channel_id)
+                await follow_channel.send(args[2])
+            
+            except:
+                log("sending event", f"failed to send to {guild_id} {jc_guild.follow_channel_id}")
+                await Logger.log_error(client, traceback.format_exc())
+
+# end send_discord_event
 
 
 async def send_calendar(client, message, user, days_span=28):

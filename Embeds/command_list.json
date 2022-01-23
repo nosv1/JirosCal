@@ -30,7 +30,7 @@
         {
             "inline": false,
             "name": "**Create, edit, and delete events**",
-            "value": "`@JirosCal#7363 create`\n`@JirosCal#7363 edit/delete/copy <event_id>`\n\u2800"
+            "value": "`@JirosCal#7363 create [discord_event_link]`\n`@JirosCal#7363 edit/delete/copy <event_id>`\n\u2800"
         },
         {
             "inline": false,
