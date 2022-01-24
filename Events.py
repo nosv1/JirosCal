@@ -477,6 +477,7 @@ async def main(client, message, args):
 
             if re.findall(r"(https:\/\/discord\.gg\/\S+\?event=\d+)", args[2]):
                 await send_discord_event(client, message, args)
+                await Support.process_complete_reaction(message, remove=False)
                 return
 
 
@@ -576,8 +577,14 @@ async def send_discord_event(client: discord.Client, message: discord.Message, a
                 if follow_channel:
                     await follow_channel.send(args[2])
 
-                else: # channel likely doesn't exist
-                    log("sending event", f"could not send to {guild_id} {jc_guild.follow_channel_id}")
+                else: # channel may not exist
+                    follow_channel = await client.fetch_channel(jc_guild.follow_channel_id)
+
+                    if follow_channel:
+                        await follow_channel.send(args[2])
+                        
+                    else:
+                        log("sending event", f"could not send to {guild_id} {jc_guild.follow_channel_id}")
             
             except:
                 log("sending event", f"failed to send to {guild_id} {jc_guild.follow_channel_id}")
