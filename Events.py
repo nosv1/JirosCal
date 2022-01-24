@@ -576,15 +576,9 @@ async def send_discord_event(client: discord.Client, message: discord.Message, a
 
                 if follow_channel:
                     await follow_channel.send(args[2])
-
-                else: # channel may not exist
-                    follow_channel = await client.fetch_channel(jc_guild.follow_channel_id)
-
-                    if follow_channel:
-                        await follow_channel.send(args[2])
                         
-                    else:
-                        log("sending event", f"could not send to {guild_id} {jc_guild.follow_channel_id}")
+                else:
+                    log("sending event", f"could not send to {guild_id} {jc_guild.follow_channel_id}")
             
             except:
                 log("sending event", f"failed to send to {guild_id} {jc_guild.follow_channel_id}")
