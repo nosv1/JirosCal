@@ -37,7 +37,7 @@ days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sun
 calendar_aliases = ["calendar", "calender", "calandar", "calander", "cal", "events", "all"] + today_aliases + week_aliases + days
 
 event_types = ["playlist", "endurance", "championship", "time-trial"]
-platforms = ["xbox", "pc", "ps", "cross-platform"]
+platforms = ["xseries", "xone", "ps5", "ps4", "pc", "cross-platform"]
 
 time_zones = {
     "North America" : [
